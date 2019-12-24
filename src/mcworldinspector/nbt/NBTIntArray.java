@@ -1,6 +1,7 @@
 package mcworldinspector.nbt;
 
 import java.nio.IntBuffer;
+import java.util.stream.IntStream;
 
 /**
  *
@@ -33,4 +34,7 @@ public class NBTIntArray extends NBTBase implements NBTArray<Integer> {
         return b.get(idx);
     }
     
+    public IntStream stream() {
+        return IntStream.range(0, b.remaining()).map(idx -> b.get(idx));
+    }
 }

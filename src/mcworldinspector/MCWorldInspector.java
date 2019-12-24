@@ -36,6 +36,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final JScrollPane mainarea = new JScrollPane();
     private final BlockTypesPanel blockListPanel = new BlockTypesPanel(this::getRenderer);
     private final EntityTypesPanel entityListPanel = new EntityTypesPanel(this::getRenderer);
+    private final BiomeTypesPanel biomeListPanel = new BiomeTypesPanel(this::getRenderer);
     private final SlimeChunksPanel slimeChunksPanel = new SlimeChunksPanel(this::getRenderer);
     private final HighlightListPanel highlightListPanel = new HighlightListPanel();
     private WorldRenderer renderer;
@@ -94,6 +95,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         highlightListPanel.setRenderer(renderer);
         blockListPanel.setBlockTypes(world.getBlockTypes());
         entityListPanel.setEntities(world.getEntityTypes());
+        biomeListPanel.setBiomes(world.getBiomes());
     }
 
     private void run() {
@@ -143,6 +145,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         JTabbedPane tabbed = new JTabbedPane();
         tabbed.add("Blocks", blockListPanel);
         tabbed.add("Entities", entityListPanel);
+        tabbed.add("Biomes", biomeListPanel);
         tabbed.add("Slime Chunks", slimeChunksPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);

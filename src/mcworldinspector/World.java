@@ -10,7 +10,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeSet;
@@ -34,12 +33,14 @@ public class World {
     private final HashSet<Chunk> chunks;
     private final TreeSet<String> blockTypes;
     private final TreeSet<String> entityTypes;
+    private final TreeSet<Chunk.Biome> biomes;
 
-    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes) {
+    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<Chunk.Biome> biomes) {
         this.level = level;
         this.chunks = chunks;
         this.blockTypes = blockTypes;
         this.entityTypes = entityTypes;
+        this.biomes = biomes;
     }
 
     public NBTTagCompound getLevel() {
@@ -56,6 +57,10 @@ public class World {
 
     public TreeSet<String> getEntityTypes() {
         return entityTypes;
+    }
+
+    public TreeSet<Chunk.Biome> getBiomes() {
+        return biomes;
     }
 
     public Stream<Chunk> chunks() {
@@ -78,6 +83,7 @@ public class World {
         private final ArrayList<FileError> errors = new ArrayList<>();
         private final TreeSet<String> blockTypes = new TreeSet<>();
         private final TreeSet<String> entityTypes = new TreeSet<>();
+        private final TreeSet<Chunk.Biome> biomes = new TreeSet<>();
         private final AtomicInteger openFiles = new AtomicInteger();
         private final ExecutorService executor = Executors.newWorkStealingPool();
         private transient final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
@@ -197,6 +203,7 @@ public class World {
                     chunks.add(chunk);
                     chunk.getBlockTypes().forEach(blockTypes::add);
                     chunk.entities().forEach(entityTypes::add);
+                    chunk.biomes().forEach(biomes::add);
                 }
             } catch(Exception e) {
                 errors.add(new FileOffsetError(file, offset, e));
@@ -218,7 +225,7 @@ public class World {
                 blockTypes.remove("minecraft:air");
                 blockTypes.remove("minecraft:cave_air");
                 blockTypes.remove("minecraft:bedrock");
-                done.accept(new World(level, chunks, blockTypes, entityTypes), errors);
+                done.accept(new World(level, chunks, blockTypes, entityTypes, biomes), errors);
             }
         }
     }
