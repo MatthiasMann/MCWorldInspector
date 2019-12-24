@@ -1,6 +1,7 @@
 package mcworldinspector.utils;
 
 import java.util.List;
+import java.util.function.Predicate;
 import javax.swing.AbstractListModel;
 
 /**
@@ -35,6 +36,13 @@ public class SimpleListModel<T> extends AbstractListModel<T> {
             super.fireIntervalRemoved(this, newCount, oldCount - 1);
         if(newCount > 0)
             super.fireContentsChanged(this, 0, newCount - 1);
+    }
+
+    public int findIndex(Predicate<T> pred) {
+        for(int idx=0,size=list.size() ; idx<size ; idx++)
+            if(pred.test(list.get(idx)))
+                return idx;
+        return -1;
     }
 
     public void fireIntervalRemoved(int first, int last) {

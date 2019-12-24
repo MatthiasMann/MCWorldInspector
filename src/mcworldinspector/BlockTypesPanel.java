@@ -1,10 +1,15 @@
 package mcworldinspector;
 
+import java.awt.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import mcworldinspector.utils.SimpleListModel;
 
 /**
  *
@@ -55,6 +60,16 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.getBlockTypes().anyMatch(blockTypes::contains))
                     .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+        }
+
+        @Override
+        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+            final List<SubChunk.BlockPos> blocks = blockTypes.stream()
+                    .flatMap(entry.chunk::findBlocks).collect(Collectors.toList());
+            JList list = new JList(new SimpleListModel(blocks));
+            // TODO: better UI
+            JOptionPane.showMessageDialog(parent, list,
+                    "Block positions", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 }

@@ -1,13 +1,10 @@
 package mcworldinspector;
 
+import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.List;
-import java.util.stream.Collectors;
-import javax.swing.AbstractListModel;
 import javax.swing.GroupLayout;
 import javax.swing.JList;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
@@ -25,7 +22,7 @@ public class HighlightListPanel extends JPanel {
         super(null);
 
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.addListSelectionListener((e) -> {
+        list.addListSelectionListener(e -> {
             WorldRenderer.HighlightEntry value = list.getSelectedValue();
             if(renderer != null && value != null)
                 renderer.scrollTo(value);
@@ -33,30 +30,8 @@ public class HighlightListPanel extends JPanel {
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if(e.getClickCount() == 2 && renderer != null) {
-                    WorldRenderer.HighlightEntry value = list.getSelectedValue();
-                    final Object highlightSelector = renderer.getHighlightSelector();
-                    if(value != null && highlightSelector instanceof BlockTypesPanel.Highlighter) {
-                        List<String> blockTypes =
-                                ((BlockTypesPanel.Highlighter) highlightSelector).getBlockTypes();
-                        final List<SubChunk.BlockPos> blocks = blockTypes.stream()
-                                .flatMap(value.chunk::findBlocks).collect(Collectors.toList());
-                        JList list = new JList(new AbstractListModel<SubChunk.BlockPos>() {
-                            @Override
-                            public int getSize() {
-                                return blocks.size();
-                            }
-                            @Override
-                            public SubChunk.BlockPos getElementAt(int index) {
-                                return blocks.get(index);
-                            }
-                        });
-                        // TODO: better UI
-                        JOptionPane.showMessageDialog(HighlightListPanel.this, list,
-                                "Block positions", JOptionPane.INFORMATION_MESSAGE);
-                    }
-                }
-            }
+                handleClick(e.getClickCount());
+            };
         });
 
         JScrollPane listSP = new JScrollPane(list);
@@ -76,6 +51,31 @@ public class HighlightListPanel extends JPanel {
             list.setModel(renderer.getHighlightsModel());
         } else {
             list.setModel(null);
+        }
+    }
+    
+    private void handleClick(int clickCount) {
+        if(clickCount == 2 && renderer != null) {
+            WorldRenderer.HighlightEntry value = list.getSelectedValue();
+            final WorldRenderer.HighlightSelector highlightSelector = renderer.getHighlightSelector();
+            if(value != null && highlightSelector != null)
+                highlightSelector.showDetailsFor(HighlightListPanel.this, value);
+        }
+    }
+
+    public void selectFromRenderer(Point p, int clickCount) {
+        if(renderer == null)
+            return;
+        final WorldRenderer.HighlightEntry selected = list.getSelectedValue();
+        if(selected != null && selected.contains(p))
+            handleClick(clickCount);
+        else {
+            final int idx = renderer.getHighlightsModel().findIndex(e -> e.contains(p));
+            if(idx >= 0) {
+                list.setSelectedIndex(idx);
+                list.ensureIndexIsVisible(idx);
+                handleClick(clickCount);
+            }
         }
     }
 }

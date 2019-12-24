@@ -1,9 +1,11 @@
 package mcworldinspector;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -47,6 +49,7 @@ public class WorldRenderer extends JComponent {
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
     private final Timer highlight_timer;
     private HighlightSelector highlightSelector;
+    private HighlightEntry flash;
 
     @SuppressWarnings("OverridableMethodCallInConstructor")
     public WorldRenderer(World world) {
@@ -92,19 +95,20 @@ public class WorldRenderer extends JComponent {
         return highlights_model;
     }
 
-    public Object getHighlightSelector() {
+    public HighlightSelector getHighlightSelector() {
         return highlightSelector;
     }
 
     public void highlight(HighlightSelector selector) {
         highlights_model.setList(Collections.EMPTY_LIST);
         highlights = selector.apply(world).collect(Collectors.toList());
-        if(!highlights.isEmpty()) {
-            highlights_model.setList(highlights);
-            highlight_timer.start();
-        } else {
+        if(highlights.isEmpty()) {
             highlightSelector = null;
             highlight_timer.stop();
+        } else {
+            highlightSelector = selector;
+            highlights_model.setList(highlights);
+            highlight_timer.start();
         }
         repaint();
     }
@@ -115,6 +119,13 @@ public class WorldRenderer extends JComponent {
                 (e.getZ() - min_z) * 16, 16, 16);
         r.grow(16, 16);
         scrollRectToVisible(r);
+        flash = e;
+        highlight_timer.restart();
+        repaint();
+    }
+
+    public Point mouse2mc(Point p) {
+        return new Point(p.x + min_x * 16, p.y+ min_z * 16);
     }
 
     @Override
@@ -135,6 +146,11 @@ public class WorldRenderer extends JComponent {
         highlights.forEach((h) -> {
             g.drawRect((h.getX() - min_x) * 16, (h.getZ() - min_z) * 16, 16, 16);
         });
+        if(flash != null) {
+            g.setColor(Color.PINK);
+            g.fillRect((flash.getX() - min_x) * 16, (flash.getZ() - min_z) * 16, 16, 16);
+            flash = null;
+        }
     }
 
     static class WildcardEntry {
@@ -225,6 +241,10 @@ public class WorldRenderer extends JComponent {
             return chunk.getGlobalZ();
         }
 
+        public boolean contains(Point p) {
+            return getX() == (p.x >> 4) && getZ() == (p.y >> 4);
+        }
+
         @Override
         public String toString() {
             return "X=" + getX()*16 + " Z=" + getZ()*16;
@@ -232,5 +252,6 @@ public class WorldRenderer extends JComponent {
     }
 
     public static interface HighlightSelector extends Function<World, Stream<HighlightEntry>> {
+        default public void showDetailsFor(Component parent, HighlightEntry entry) {}
     }
 }
