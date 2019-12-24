@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -43,6 +44,10 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
         return Collections.unmodifiableSet(entries.entrySet()).iterator();
     }
 
+    public Stream<Object> values() {
+        return entries.values().stream();
+    }
+
     public<U> U get(String name, Class<U> type) {
         Object o = entries.get(name);
         return type.isInstance(o) ? type.cast(o) : null;
@@ -55,12 +60,12 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
 
     public NBTTagCompound getCompound(String name) {
         Object o = entries.get(name);
-        return (o instanceof NBTTagCompound) ? (NBTTagCompound)o : null;
+        return (o instanceof NBTTagCompound) ? (NBTTagCompound)o : EMPTY;
     }
 
     public<U> NBTTagList<U> getList(String name, Class<U> type) {
         Object o = entries.get(name);
-        return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : null;
+        return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : NBTTagList.EMPTY;
     }
 
     @Override

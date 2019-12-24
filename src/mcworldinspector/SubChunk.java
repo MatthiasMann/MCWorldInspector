@@ -1,14 +1,8 @@
 package mcworldinspector;
 
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
-import java.util.Spliterator;
-import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;

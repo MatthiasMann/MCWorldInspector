@@ -1,8 +1,7 @@
 package mcworldinspector;
 
-import java.util.List;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  *
@@ -65,10 +64,9 @@ public class SlimeChunksPanel extends javax.swing.JPanel {
 
     public static final class Highlighter implements WorldRenderer.HighlightSelector {
         @Override
-        public List<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
             return world.slimeChunks()
-                .map(chunk -> new WorldRenderer.HighlightEntry(chunk))
-                .collect(Collectors.toList());
+                .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
         }
     }
 }

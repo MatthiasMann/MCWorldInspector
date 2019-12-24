@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.TreeMap;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
 import javax.swing.JFileChooser;
@@ -34,9 +35,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     private final Preferences preferences;
     private final JScrollPane mainarea = new JScrollPane();
-    private final BlockTypesPanel blockListPanel = new BlockTypesPanel(this::getRenderer);
-    private final EntityTypesPanel entityListPanel = new EntityTypesPanel(this::getRenderer);
-    private final BiomeTypesPanel biomeListPanel = new BiomeTypesPanel(this::getRenderer);
+    private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
     private final SlimeChunksPanel slimeChunksPanel = new SlimeChunksPanel(this::getRenderer);
     private final HighlightListPanel highlightListPanel = new HighlightListPanel();
     private WorldRenderer renderer;
@@ -44,6 +43,11 @@ public class MCWorldInspector extends javax.swing.JFrame {
     public MCWorldInspector(String[] args) {
         super("MC World Inspector");
         this.preferences = Preferences.userNodeForPackage(MCWorldInspector.class);
+        
+        filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer));
+        filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer));
+        filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer));
+        filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer));
     }
 
     public WorldRenderer getRenderer() {
@@ -65,6 +69,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         // free up memory
         if(renderer != null) {
             mainarea.setViewportView(null);
+            filteredPanels.values().forEach(AbstractFilteredPanel::reset);
             highlightListPanel.setRenderer(null);
             renderer = null;
         }
@@ -93,9 +98,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.setViewportView(renderer);
         renderer.startChunkRendering();
         highlightListPanel.setRenderer(renderer);
-        blockListPanel.setBlockTypes(world.getBlockTypes());
-        entityListPanel.setEntities(world.getEntityTypes());
-        biomeListPanel.setBiomes(world.getBiomes());
+        filteredPanels.values().forEach(p -> p.setWorld(world));
     }
 
     private void run() {
@@ -143,9 +146,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.addMouseMotionListener(mouseAdapter);
 
         JTabbedPane tabbed = new JTabbedPane();
-        tabbed.add("Blocks", blockListPanel);
-        tabbed.add("Entities", entityListPanel);
-        tabbed.add("Biomes", biomeListPanel);
+        filteredPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue()));
         tabbed.add("Slime Chunks", slimeChunksPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);

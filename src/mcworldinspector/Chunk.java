@@ -1,11 +1,11 @@
 package mcworldinspector;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
@@ -31,16 +31,13 @@ public class Chunk extends XZPosition {
         super(globalX, globalZ);
         this.level = nbt.getCompound("Level");
         this.heightmap = level.getCompound("Heightmaps").get("MOTION_BLOCKING_NO_LEAVES", NBTLongArray.class);
-        NBTTagList<NBTTagCompound> sections = level.getList("Sections", NBTTagCompound.class);
-        if(sections != null) {
-            for(NBTTagCompound s : sections) {
-                int y = ((Number)s.get("Y")).intValue();
-                NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
-                NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
-                if(y >= 0 && y < subchunks.length && palette != null &&
-                        blockStates != null && !blockStates.isEmpty())
-                    subchunks[y] = new SubChunk(palette, blockStates, (byte)y);
-            }
+        for(NBTTagCompound s : level.getList("Sections", NBTTagCompound.class)) {
+            int y = ((Number)s.get("Y")).intValue();
+            NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
+            NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
+            if(y >= 0 && y < subchunks.length && !palette.isEmpty() &&
+                    blockStates != null && !blockStates.isEmpty())
+                subchunks[y] = new SubChunk(palette, blockStates, (byte)y);
         }
     }
 
@@ -110,10 +107,15 @@ public class Chunk extends XZPosition {
     }
     
     public Stream<String> entities() {
-        final NBTTagList<NBTTagCompound> entities = level.getList("Entities", NBTTagCompound.class);
-        if(entities == null || entities.isEmpty())
-            return Stream.empty();
-        return entities.stream().map(e -> e.getString("id")).filter(Objects::nonNull);
+        return level.getList("Entities", NBTTagCompound.class)
+                .stream().map(e -> e.getString("id")).filter(Objects::nonNull);
+    }
+    
+    public Stream<String> structures() {
+        return level.getCompound("Structures").getCompound("Starts").values()
+                .filter(v -> v instanceof NBTTagCompound)
+                .map(v -> ((NBTTagCompound)v).getString("id"))
+                .filter(id -> id != null && !"INVALID".equals(id));
     }
     
     public Stream<Biome> biomes() {
@@ -173,7 +175,6 @@ public class Chunk extends XZPosition {
                 }
             });
         } catch(Exception ex) {
-            ex.printStackTrace();
         }
     }
 }

@@ -23,6 +23,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.Timer;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -96,7 +98,7 @@ public class WorldRenderer extends JComponent {
 
     public void highlight(HighlightSelector selector) {
         highlights_model.setList(Collections.EMPTY_LIST);
-        highlights = selector.apply(world);
+        highlights = selector.apply(world).collect(Collectors.toList());
         if(!highlights.isEmpty()) {
             highlights_model.setList(highlights);
             highlight_timer.start();
@@ -229,6 +231,6 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    public static interface HighlightSelector extends Function<World, List<HighlightEntry>> {
+    public static interface HighlightSelector extends Function<World, Stream<HighlightEntry>> {
     }
 }

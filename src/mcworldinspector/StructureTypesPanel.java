@@ -10,28 +10,28 @@ import java.util.stream.Stream;
  *
  * @author matthias
  */
-public class BlockTypesPanel extends AbstractFilteredPanel<String> {
-    private Set<String> blockTypes = Collections.EMPTY_SET;
+public class StructureTypesPanel extends AbstractFilteredPanel<String> {
+    private Set<String> structureTypes = Collections.EMPTY_SET;
 
-    public BlockTypesPanel(Supplier<WorldRenderer> renderer) {
+    public StructureTypesPanel(Supplier<WorldRenderer> renderer) {
         super(renderer);
     }
 
     @Override
     public void reset() {
-        blockTypes = Collections.EMPTY_SET;
+        structureTypes = Collections.EMPTY_SET;
         buildListModel();
     }
 
     @Override
     public void setWorld(World world) {
-        blockTypes = world.getBlockTypes();
+        structureTypes = world.getStructureTypes();
         buildListModel();
     }
 
     @Override
     protected List<String> filteredList(String filter) {
-        return filteredStringList(blockTypes, filter);
+        return filteredStringList(structureTypes, filter);
     }
 
     @Override
@@ -40,20 +40,20 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     }
     
     public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final List<String> blockTypes;
+        private final List<String> structureTypes;
 
-        public Highlighter(List<String> blockTypes) {
-            this.blockTypes = blockTypes;
+        public Highlighter(List<String> structureTypes) {
+            this.structureTypes = structureTypes;
         }
 
-        public List<String> getBlockTypes() {
-            return blockTypes;
+        public List<String> getStructureTypes() {
+            return structureTypes;
         }
 
         @Override
         public Stream<WorldRenderer.HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.getBlockTypes().anyMatch(blockTypes::contains))
+                    .filter(chunk -> chunk.structures().anyMatch(structureTypes::contains))
                     .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
         }
     }

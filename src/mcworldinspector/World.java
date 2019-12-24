@@ -33,13 +33,15 @@ public class World {
     private final HashSet<Chunk> chunks;
     private final TreeSet<String> blockTypes;
     private final TreeSet<String> entityTypes;
+    private final TreeSet<String> structureTypes;
     private final TreeSet<Chunk.Biome> biomes;
 
-    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<Chunk.Biome> biomes) {
+    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<String> structureTypes, TreeSet<Chunk.Biome> biomes) {
         this.level = level;
         this.chunks = chunks;
         this.blockTypes = blockTypes;
         this.entityTypes = entityTypes;
+        this.structureTypes = structureTypes;
         this.biomes = biomes;
     }
 
@@ -57,6 +59,10 @@ public class World {
 
     public TreeSet<String> getEntityTypes() {
         return entityTypes;
+    }
+
+    public TreeSet<String> getStructureTypes() {
+        return structureTypes;
     }
 
     public TreeSet<Chunk.Biome> getBiomes() {
@@ -83,6 +89,7 @@ public class World {
         private final ArrayList<FileError> errors = new ArrayList<>();
         private final TreeSet<String> blockTypes = new TreeSet<>();
         private final TreeSet<String> entityTypes = new TreeSet<>();
+        private final TreeSet<String> structureTypes = new TreeSet<>();
         private final TreeSet<Chunk.Biome> biomes = new TreeSet<>();
         private final AtomicInteger openFiles = new AtomicInteger();
         private final ExecutorService executor = Executors.newWorkStealingPool();
@@ -203,6 +210,7 @@ public class World {
                     chunks.add(chunk);
                     chunk.getBlockTypes().forEach(blockTypes::add);
                     chunk.entities().forEach(entityTypes::add);
+                    chunk.structures().forEach(structureTypes::add);
                     chunk.biomes().forEach(biomes::add);
                 }
             } catch(Exception e) {
@@ -225,7 +233,8 @@ public class World {
                 blockTypes.remove("minecraft:air");
                 blockTypes.remove("minecraft:cave_air");
                 blockTypes.remove("minecraft:bedrock");
-                done.accept(new World(level, chunks, blockTypes, entityTypes, biomes), errors);
+                done.accept(new World(level, chunks, blockTypes, entityTypes,
+                        structureTypes, biomes), errors);
             }
         }
     }

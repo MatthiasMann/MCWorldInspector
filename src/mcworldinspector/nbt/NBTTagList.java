@@ -11,6 +11,8 @@ import java.util.stream.Stream;
  */
 public class NBTTagList<T> extends NBTBase implements NBTArray<T> {
 
+    public static final NBTTagList EMPTY = new NBTTagList(void.class);
+
     final Class type;
     final ArrayList<T> entries = new ArrayList<>();
 
@@ -47,6 +49,6 @@ public class NBTTagList<T> extends NBTBase implements NBTArray<T> {
     }
     
     public<U> NBTTagList<U> as(Class<U> type) {
-        return this.type.equals(type) ? (NBTTagList<U>)this : null;
+        return this.type.equals(type) ? (NBTTagList<U>)this : EMPTY;
     }
 }
