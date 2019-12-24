@@ -1,8 +1,8 @@
 package mcworldinspector;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTLongArray;
@@ -15,17 +15,15 @@ import mcworldinspector.nbt.NBTTagList;
  */
 public class Chunk extends XZPosition {
     
-    private final NBTTagCompound nbt;
-    private final NBTTagList<NBTTagCompound> sections;
+    private final NBTTagCompound level;
     private final NBTLongArray heightmap;
     private final SubChunk[] subchunks = new SubChunk[16];
 
     public Chunk(int globalX, int globalZ, NBTTagCompound nbt) {
         super(globalX, globalZ);
-        this.nbt = nbt;
-        NBTTagCompound level = nbt.getCompound("Level");
+        this.level = nbt.getCompound("Level");
         this.heightmap = level.getCompound("Heightmaps").get("MOTION_BLOCKING_NO_LEAVES", NBTLongArray.class);
-        this.sections = level.getList("Sections", NBTTagCompound.class);
+        NBTTagList<NBTTagCompound> sections = level.getList("Sections", NBTTagCompound.class);
         if(sections != null) {
             for(NBTTagCompound s : sections) {
                 int y = ((Number)s.get("Y")).intValue();
@@ -58,6 +56,19 @@ public class Chunk extends XZPosition {
         return new XZPosition(x & ~31, z & ~31);
     }
 
+    public boolean isSlimeChunk(long seed) {
+        Random rnd = new Random(seed +
+                (long) (x * x * 0x4c1906) +
+                (long) (x * 0x5ac0db) +
+                (long) (z * z) * 0x4307a7L +
+                (long) (z * 0x5f24f) ^ 0x3ad8025f);
+        return rnd.nextInt(10) == 0;
+    }
+
+    public boolean isEmpty() {
+        return heightmap == null;
+    }
+
     public SubChunk getSubChunk(int y) {
         return subchunks[y];
     }
@@ -88,5 +99,12 @@ public class Chunk extends XZPosition {
 
     public Stream<String> getBlockTypes() {
         return subChunks().flatMap(SubChunk::getBlockTypes);
+    }
+    
+    public Stream<String> entities() {
+        final NBTTagList<NBTTagCompound> entities = level.getList("Entities", NBTTagCompound.class);
+        if(entities == null || entities.isEmpty())
+            return Stream.empty();
+        return entities.stream().map(e -> e.getString("id")).filter(Objects::nonNull);
     }
 }

@@ -5,17 +5,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.Expected;
 
@@ -30,7 +25,7 @@ public class RegionFile {
     private RegionFile() {}
 
     @SuppressWarnings("UseSpecificCatch")
-    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, Consumer<Expected<Chunk>> c) throws IOException {
+    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, BiConsumer<Expected<Chunk>, Integer> c) throws IOException {
         Matcher matcher = NAME_PATTERN.matcher(file.getName());
         if(!matcher.matches())
             throw new IOException("Invalid file name: " + file);
@@ -60,16 +55,11 @@ public class RegionFile {
                     ++submittedChunks;
                     outstanding.incrementAndGet();
                     e.submit(() -> {
-                        Expected<Chunk> v;
-                        try {
-                            v = new Expected<>(loadChunk(raf, offset, chunkX, chunkZ));
-                        } catch(Exception ex) {
-                            v = new Expected<>(ex);
-                        } finally {
-                            if(outstanding.decrementAndGet() == 0)
-                                closeFile(raf, openFiles);
-                        }
-                        c.accept(v);
+                        Expected<Chunk> v = Expected.wrap(
+                                () -> loadChunk(raf, offset, chunkX, chunkZ));
+                        if(outstanding.decrementAndGet() == 0)
+                            closeFile(raf, openFiles);
+                        c.accept(v, offset);
                     });
                 }
             }
@@ -94,21 +84,15 @@ public class RegionFile {
         int size = header.getInt(0);
         int type = header.get(4);
         ByteBuffer chunk_gz = ByteBuffer.allocate(size - 1);
-        raf.getChannel().read(chunk_gz, file_offset + 5);
+        if(raf.getChannel().read(chunk_gz, file_offset + 5) != chunk_gz.capacity())
+            throw new EOFException("Could not read compressed chunk");
+        chunk_gz.flip();
 
-        ByteBuffer chunk = ByteBuffer.allocate(1 << 20);
-        Inflater i = new Inflater();
-        i.setInput(chunk_gz.array(), 0, chunk_gz.position());
         try {
-            int len = i.inflate(chunk.array());
-            chunk = ByteBuffer.wrap(Arrays.copyOf(chunk.array(), len));
+            NBTTagCompound nbt = NBTTagCompound.parseInflate(chunk_gz, false);
+            return new Chunk(global_x, global_z, nbt);
         } catch(DataFormatException e) {
             throw new IOException(e);
-        }
-
-        try {
-            NBTTagCompound nbt = NBTTagCompound.parse(chunk);
-            return new Chunk(global_x, global_z, nbt);
         } catch(java.nio.BufferUnderflowException e) {
             throw new IOException("NBT data corrupted");
         }

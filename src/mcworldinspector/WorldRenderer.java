@@ -15,18 +15,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import javax.swing.AbstractListModel;
 import javax.swing.JComponent;
 import javax.swing.Timer;
 import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.utils.SimpleListModel;
 
 /**
  *
@@ -34,24 +34,25 @@ import mcworldinspector.nbt.NBTTagCompound;
  */
 public class WorldRenderer extends JComponent {
 
-    private final HashSet<Chunk> chunks;
+    private final World world;
     private final int min_x;
     private final int min_z;
     private final int max_x;
     private final int max_z;
     private final HashMap<XZPosition, BufferedImage> images = new HashMap<>();
 
-    private final ArrayList<HighlightEntry> highlights = new ArrayList<>();
-    private final HighlightsModel highlights_model = new HighlightsModel(highlights);
+    private List<HighlightEntry> highlights = Collections.EMPTY_LIST;
+    private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
     private final Timer highlight_timer;
+    private HighlightSelector highlightSelector;
 
     @SuppressWarnings("OverridableMethodCallInConstructor")
-    public WorldRenderer(HashSet<Chunk> chunks) {
-        this.chunks = chunks;
-        this.min_x = chunks.parallelStream().mapToInt(Chunk::getGlobalX).reduce(Math::min).orElse(0);
-        this.min_z = chunks.parallelStream().mapToInt(Chunk::getGlobalZ).reduce(Math::min).orElse(0);
-        this.max_x = chunks.parallelStream().mapToInt(Chunk::getGlobalX).reduce(Math::max).orElse(0);
-        this.max_z = chunks.parallelStream().mapToInt(Chunk::getGlobalZ).reduce(Math::max).orElse(0);
+    public WorldRenderer(World world) {
+        this.world = world;
+        this.min_x = world.getChunks().parallelStream().mapToInt(Chunk::getGlobalX).reduce(Math::min).orElse(0);
+        this.min_z = world.getChunks().parallelStream().mapToInt(Chunk::getGlobalZ).reduce(Math::min).orElse(0);
+        this.max_x = world.getChunks().parallelStream().mapToInt(Chunk::getGlobalX).reduce(Math::max).orElse(0);
+        this.max_z = world.getChunks().parallelStream().mapToInt(Chunk::getGlobalZ).reduce(Math::max).orElse(0);
         highlight_timer = new Timer(1000, (e) -> {
             highlight_index = (highlight_index + 1) % HIGHLIGHT_COLORS.length;
             repaint();
@@ -63,7 +64,7 @@ public class WorldRenderer extends JComponent {
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.submit(() -> {
             HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>();
-            chunks.stream().forEach(chunk -> regions.computeIfAbsent(
+            world.chunks().forEach(chunk -> regions.computeIfAbsent(
                     chunk.getRegionStart(), pos -> new ArrayList<>()).add(chunk));
             regions.entrySet().forEach(e -> executor.submit(() -> {
                 BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_BYTE_INDEXED, COLOR_MAP);
@@ -85,30 +86,27 @@ public class WorldRenderer extends JComponent {
         });
     }
 
-    public HighlightsModel getHighlightsModel() {
+    public SimpleListModel<HighlightEntry> getHighlightsModel() {
         return highlights_model;
     }
 
-    public void highlightBlocks(List<String> blocks) {
-        int oldCount = highlights.size();
-        highlights.clear();
-        highlights_model.fireIntervalRemoved(0, oldCount);
-        if(!blocks.isEmpty()) {
-            highlights.addAll(
-                    chunks.parallelStream()
-                    .filter(chunk -> chunk.getBlockTypes().anyMatch(blocks::contains))
-                    .map(chunk -> new HighlightEntry(chunk))
-                    .collect(Collectors.toList()));
-        }
-        if(highlights.isEmpty())
-            highlight_timer.stop();
-        else {
-            highlights_model.fireIntervalAdded(0, highlights.size());
+    public Object getHighlightSelector() {
+        return highlightSelector;
+    }
+
+    public void highlight(HighlightSelector selector) {
+        highlights_model.setList(Collections.EMPTY_LIST);
+        highlights = selector.apply(world);
+        if(!highlights.isEmpty()) {
+            highlights_model.setList(highlights);
             highlight_timer.start();
+        } else {
+            highlightSelector = null;
+            highlight_timer.stop();
         }
         repaint();
     }
-    
+
     public void scrollTo(HighlightEntry e) {
         Rectangle r = new Rectangle(
                 (e.getX() - min_x) * 16,
@@ -230,30 +228,7 @@ public class WorldRenderer extends JComponent {
             return "X=" + getX()*16 + " Z=" + getZ()*16;
         }
     }
-    
-    public static class HighlightsModel extends AbstractListModel<HighlightEntry> {
-        final ArrayList<HighlightEntry> list;
 
-        public HighlightsModel(ArrayList<HighlightEntry> list) {
-            this.list = list;
-        }
-
-        @Override
-        public int getSize() {
-            return list.size();
-        }
-
-        @Override
-        public HighlightEntry getElementAt(int index) {
-            return list.get(index);
-        }
-
-        public void fireIntervalRemoved(int first, int last) {
-            super.fireIntervalRemoved(this, first, last);
-        }
-
-        protected void fireIntervalAdded(int first, int last) {
-            super.fireIntervalAdded(this, first, last);
-        }
+    public static interface HighlightSelector extends Function<World, List<HighlightEntry>> {
     }
 }

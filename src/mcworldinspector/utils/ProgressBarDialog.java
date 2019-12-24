@@ -1,4 +1,4 @@
-package mcworldinspector;
+package mcworldinspector.utils;
 
 /**
  *

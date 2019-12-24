@@ -20,4 +20,16 @@ public class Expected<T> {
             throw (Exception)value;
         return (T)value;
     }
+    
+    public @FunctionalInterface interface ThrowingSupplier<T> {
+        public T get() throws Exception;
+    };
+
+    public static<T> Expected<T> wrap(ThrowingSupplier<T> producer) {
+        try {
+            return new Expected<>(producer.get());
+        } catch(Exception ex) {
+            return new Expected<>(ex);
+        }
+    }
 }
