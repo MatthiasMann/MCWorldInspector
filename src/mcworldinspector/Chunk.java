@@ -116,6 +116,16 @@ public class Chunk extends XZPosition {
                 .filter(v -> id.equals(v.getString("id")));
     }
     
+    public Stream<String> tileEntities() {
+        return level.getList("TileEntities", NBTTagCompound.class)
+                .stream().map(e -> e.getString("id")).filter(Objects::nonNull);
+    }
+
+    public Stream<NBTTagCompound> getTileEntities(String id) {
+        return level.getList("TileEntities", NBTTagCompound.class).stream()
+                .filter(v -> id.equals(v.getString("id")));
+    }
+
     public Stream<String> structureTypes() {
         return level.getCompound("Structures").getCompound("Starts")
                 .values(NBTTagCompound.class).map(v -> v.getString("id"))

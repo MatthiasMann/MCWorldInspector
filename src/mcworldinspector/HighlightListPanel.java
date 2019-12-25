@@ -8,6 +8,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 
 /**
  *
@@ -58,8 +59,14 @@ public class HighlightListPanel extends JPanel {
         if(clickCount == 2 && renderer != null) {
             WorldRenderer.HighlightEntry value = list.getSelectedValue();
             final WorldRenderer.HighlightSelector highlightSelector = renderer.getHighlightSelector();
-            if(value != null && highlightSelector != null)
-                highlightSelector.showDetailsFor(HighlightListPanel.this, value);
+            if(value != null && highlightSelector != null) {
+                renderer.flash(value);
+                try {
+                    highlightSelector.showDetailsFor(SwingUtilities.getWindowAncestor(this), value);
+                } finally {
+                    renderer.flash(null);
+                }
+            }
         }
     }
 

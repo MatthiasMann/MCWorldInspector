@@ -14,28 +14,28 @@ import mcworldinspector.nbttree.NBTTreeModel;
  *
  * @author matthias
  */
-public class EntityTypesPanel extends AbstractFilteredPanel<String> {
-    private Set<String> entities = Collections.EMPTY_SET;
+public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
+    private Set<String> tileEntities = Collections.EMPTY_SET;
 
-    public EntityTypesPanel(Supplier<WorldRenderer> renderer) {
+    public TileEntityTypesPanel(Supplier<WorldRenderer> renderer) {
         super(renderer);
     }
 
     @Override
     public void reset() {
-        entities = Collections.EMPTY_SET;
+        tileEntities = Collections.EMPTY_SET;
         buildListModel();
     }
 
     @Override
     public void setWorld(World world) {
-        entities = world.getEntityTypes();
+        tileEntities = world.getTileEntityTypes();
         buildListModel();
     }
 
     @Override
     protected List<String> filteredList(String filter) {
-        return filteredStringList(entities, filter);
+        return filteredStringList(tileEntities, filter);
     }
 
     @Override
@@ -57,17 +57,17 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
         @Override
         public Stream<WorldRenderer.HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.entities().anyMatch(entities::contains))
+                    .filter(chunk -> chunk.tileEntities().anyMatch(entities::contains))
                     .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
         }
 
         @Override
         public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
             NBTTagList<NBTTagCompound> result = entities.stream()
-                    .flatMap(entry.chunk::getEntities)
+                    .flatMap(entry.chunk::getTileEntities)
                     .filter(nbt -> !nbt.isEmpty())
                     .collect(NBTTagList.toTagList(NBTTagCompound.class));
-            NBTTreeModel.displayNBT(parent, result, "Entity details for " + entry);
+            NBTTreeModel.displayNBT(parent, result, "Tile entity details for " + entry);
         }
     }
 }

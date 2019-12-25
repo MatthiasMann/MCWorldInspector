@@ -50,6 +50,13 @@ public class WorldRenderer extends JComponent {
     private final Timer highlight_timer;
     private HighlightSelector highlightSelector;
     private HighlightEntry flash;
+    private FlashMode flashMode = FlashMode.RESET;
+
+    private enum FlashMode {
+        RESET,
+        ON,
+        OFF
+    }
 
     @SuppressWarnings("OverridableMethodCallInConstructor")
     public WorldRenderer(World world) {
@@ -120,8 +127,16 @@ public class WorldRenderer extends JComponent {
         r.grow(16, 16);
         scrollRectToVisible(r);
         flash = e;
+        flashMode = FlashMode.RESET;
         highlight_timer.restart();
         repaint();
+    }
+    
+    public void flash(HighlightEntry e) {
+        flash = e;
+        flashMode = FlashMode.ON;
+        if (e == null)
+            repaint();
     }
 
     public Point mouse2mc(Point p) {
@@ -147,9 +162,15 @@ public class WorldRenderer extends JComponent {
             g.drawRect((h.getX() - min_x) * 16, (h.getZ() - min_z) * 16, 16, 16);
         });
         if(flash != null) {
-            g.setColor(Color.PINK);
-            g.fillRect((flash.getX() - min_x) * 16, (flash.getZ() - min_z) * 16, 16, 16);
-            flash = null;
+            if(flashMode != FlashMode.OFF) {
+                g.setColor(Color.PINK);
+                g.fillRect((flash.getX() - min_x) * 16, (flash.getZ() - min_z) * 16, 16, 16);
+            }
+            switch(flashMode) {
+                case OFF: flashMode = FlashMode.ON; break;
+                case ON: flashMode = FlashMode.OFF; break;
+                case RESET: flash = null; break;
+            }
         }
     }
 

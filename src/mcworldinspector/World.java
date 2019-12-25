@@ -33,14 +33,16 @@ public class World {
     private final HashSet<Chunk> chunks;
     private final TreeSet<String> blockTypes;
     private final TreeSet<String> entityTypes;
+    private final TreeSet<String> tileEntityTypes;
     private final TreeSet<String> structureTypes;
     private final TreeSet<Chunk.Biome> biomes;
 
-    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<String> structureTypes, TreeSet<Chunk.Biome> biomes) {
+    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<String> tileEntityTypes, TreeSet<String> structureTypes, TreeSet<Chunk.Biome> biomes) {
         this.level = level;
         this.chunks = chunks;
         this.blockTypes = blockTypes;
         this.entityTypes = entityTypes;
+        this.tileEntityTypes = tileEntityTypes;
         this.structureTypes = structureTypes;
         this.biomes = biomes;
     }
@@ -59,6 +61,10 @@ public class World {
 
     public TreeSet<String> getEntityTypes() {
         return entityTypes;
+    }
+
+    public TreeSet<String> getTileEntityTypes() {
+        return tileEntityTypes;
     }
 
     public TreeSet<String> getStructureTypes() {
@@ -89,6 +95,7 @@ public class World {
         private final ArrayList<FileError> errors = new ArrayList<>();
         private final TreeSet<String> blockTypes = new TreeSet<>();
         private final TreeSet<String> entityTypes = new TreeSet<>();
+        private final TreeSet<String> tileEntityTypes = new TreeSet<>();
         private final TreeSet<String> structureTypes = new TreeSet<>();
         private final TreeSet<Chunk.Biome> biomes = new TreeSet<>();
         private final AtomicInteger openFiles = new AtomicInteger();
@@ -210,6 +217,7 @@ public class World {
                     chunks.add(chunk);
                     chunk.getBlockTypes().forEach(blockTypes::add);
                     chunk.entities().forEach(entityTypes::add);
+                    chunk.tileEntities().forEach(tileEntityTypes::add);
                     chunk.structureTypes().forEach(structureTypes::add);
                     chunk.biomes().forEach(biomes::add);
                 }
@@ -234,7 +242,7 @@ public class World {
                 blockTypes.remove("minecraft:cave_air");
                 blockTypes.remove("minecraft:bedrock");
                 done.accept(new World(level, chunks, blockTypes, entityTypes,
-                        structureTypes, biomes), errors);
+                        tileEntityTypes, structureTypes, biomes), errors);
             }
         }
     }
