@@ -6,7 +6,7 @@ import java.nio.DoubleBuffer;
  *
  * @author matthias
  */
-public class NBTDoubleArray extends NBTBase implements NBTArray<Double> {
+public class NBTDoubleArray extends NBTArray<Double> {
     
     private final DoubleBuffer b;
 

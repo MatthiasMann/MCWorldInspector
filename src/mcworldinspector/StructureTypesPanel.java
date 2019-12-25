@@ -1,10 +1,18 @@
 package mcworldinspector;
 
+import java.awt.Component;
+import java.awt.Dimension;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.nbt.NBTTagList;
+import mcworldinspector.nbttree.NBTTreeModel;
 
 /**
  *
@@ -53,8 +61,16 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
         @Override
         public Stream<WorldRenderer.HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.structures().anyMatch(structureTypes::contains))
+                    .filter(chunk -> chunk.structureTypes().anyMatch(structureTypes::contains))
                     .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+        }
+
+        @Override
+        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+            NBTTagList<NBTTagCompound> result = structureTypes.stream()
+                    .flatMap(entry.chunk::getStructures)
+                    .collect(NBTTagList.toTagList(NBTTagCompound.class));
+            NBTTreeModel.displayNBT(parent, result);
         }
     }
 }

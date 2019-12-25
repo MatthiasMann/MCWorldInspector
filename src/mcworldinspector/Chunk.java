@@ -110,12 +110,22 @@ public class Chunk extends XZPosition {
         return level.getList("Entities", NBTTagCompound.class)
                 .stream().map(e -> e.getString("id")).filter(Objects::nonNull);
     }
+
+    public Stream<NBTTagCompound> getEntities(String id) {
+        return level.getList("Entities", NBTTagCompound.class).stream()
+                .filter(v -> id.equals(v.getString("id")));
+    }
     
-    public Stream<String> structures() {
-        return level.getCompound("Structures").getCompound("Starts").values()
-                .filter(v -> v instanceof NBTTagCompound)
-                .map(v -> ((NBTTagCompound)v).getString("id"))
+    public Stream<String> structureTypes() {
+        return level.getCompound("Structures").getCompound("Starts")
+                .values(NBTTagCompound.class).map(v -> v.getString("id"))
                 .filter(id -> id != null && !"INVALID".equals(id));
+    }
+    
+    public Stream<NBTTagCompound> getStructures(String id) {
+        return level.getCompound("Structures").getCompound("Starts")
+                .values(NBTTagCompound.class)
+                .filter(v -> id.equals(v.getString("id")));
     }
     
     public Stream<Biome> biomes() {

@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
  *
  * @author matthias
  */
-public class NBTByteArray extends NBTBase implements NBTArray<Byte> {
+public class NBTByteArray extends NBTArray<Byte> {
     
     private final ByteBuffer b;
 

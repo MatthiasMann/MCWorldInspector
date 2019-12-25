@@ -210,7 +210,7 @@ public class World {
                     chunks.add(chunk);
                     chunk.getBlockTypes().forEach(blockTypes::add);
                     chunk.entities().forEach(entityTypes::add);
-                    chunk.structures().forEach(structureTypes::add);
+                    chunk.structureTypes().forEach(structureTypes::add);
                     chunk.biomes().forEach(biomes::add);
                 }
             } catch(Exception e) {

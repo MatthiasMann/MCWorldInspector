@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
@@ -44,8 +45,16 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
         return Collections.unmodifiableSet(entries.entrySet()).iterator();
     }
 
+    public Set<Map.Entry<String, Object>> entrySet() {
+        return Collections.unmodifiableSet(entries.entrySet());
+    }
+
     public Stream<Object> values() {
         return entries.values().stream();
+    }
+
+    public<T> Stream<T> values(Class<T> type) {
+        return values().filter(type::isInstance).map(type::cast);
     }
 
     public<U> U get(String name, Class<U> type) {

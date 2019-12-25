@@ -6,7 +6,7 @@ import java.nio.ShortBuffer;
  *
  * @author matthias
  */
-public class NBTShortArray extends NBTBase implements NBTArray<Short> {
+public class NBTShortArray extends NBTArray<Short> {
     
     private final ShortBuffer b;
 

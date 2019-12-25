@@ -6,7 +6,7 @@ import java.nio.FloatBuffer;
  *
  * @author matthias
  */
-public class NBTFloatArray extends NBTBase implements NBTArray<Float> {
+public class NBTFloatArray extends NBTArray<Float> {
     
     private final FloatBuffer b;
 

@@ -6,7 +6,7 @@ import java.nio.LongBuffer;
  *
  * @author matthias
  */
-public class NBTLongArray extends NBTBase implements NBTArray<Long> {
+public class NBTLongArray extends NBTArray<Long> {
     
     private final LongBuffer b;
 

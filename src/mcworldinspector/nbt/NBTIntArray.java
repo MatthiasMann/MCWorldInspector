@@ -7,7 +7,7 @@ import java.util.stream.IntStream;
  *
  * @author matthias
  */
-public class NBTIntArray extends NBTBase implements NBTArray<Integer> {
+public class NBTIntArray extends NBTArray<Integer> {
     
     private final IntBuffer b;
 
