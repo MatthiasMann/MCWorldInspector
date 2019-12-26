@@ -3,6 +3,7 @@ package mcworldinspector;
 import java.awt.Point;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import javax.swing.DefaultListModel;
 import javax.swing.GroupLayout;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -51,7 +52,7 @@ public class HighlightListPanel extends JPanel {
         if(renderer != null) {
             list.setModel(renderer.getHighlightsModel());
         } else {
-            list.setModel(null);
+            list.setModel(new DefaultListModel<>());
         }
     }
     

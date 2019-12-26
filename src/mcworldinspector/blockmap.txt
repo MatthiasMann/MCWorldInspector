@@ -7,7 +7,7 @@
 D0D0FF minecraft:ice
 808080 minecraft:stone
 0000FF ^minecraft:.*seagrass$
-a3791d minecraft:podzole
+a3791d minecraft:podzol
 db4444 minecraft:red_sand
 FF0000 minecraft:lava
 cfc963 minecraft:sand

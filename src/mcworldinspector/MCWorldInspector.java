@@ -3,25 +3,28 @@ package mcworldinspector;
 import mcworldinspector.utils.ProgressBarDialog;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.TreeMap;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
-import javax.swing.BoxLayout;
 import javax.swing.GroupLayout;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.JViewport;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.MultipleErrorsDialog;
 import mcworldinspector.utils.StatusBar;
 
@@ -41,10 +44,11 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final Preferences preferences;
     private final JScrollPane mainarea = new JScrollPane();
     private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
-    private final SlimeChunksPanel slimeChunksPanel = new SlimeChunksPanel(this::getRenderer);
+    private final SimpleThingsPanel simpleThingsPanel = new SimpleThingsPanel(this::getRenderer);
     private final HighlightListPanel highlightListPanel = new HighlightListPanel();
     private final StatusBar statusBar = new StatusBar();
     private final JTextField statusBarCursorPos = new JTextField();
+    private World world;
     private WorldRenderer renderer;
 
     public MCWorldInspector(String[] args) {
@@ -74,14 +78,19 @@ public class MCWorldInspector extends javax.swing.JFrame {
         }
     }
 
+    private void closeWorld() {
+        World oldWorld = world;
+        renderer = null;
+        world = null;
+        mainarea.setViewportView(null);
+        filteredPanels.values().forEach(AbstractFilteredPanel::reset);
+        highlightListPanel.setRenderer(null);
+        firePropertyChange("world", oldWorld, world);
+    }
+
     private void loadWorld(File folder) {
         // free up memory
-        if(renderer != null) {
-            mainarea.setViewportView(null);
-            filteredPanels.values().forEach(AbstractFilteredPanel::reset);
-            highlightListPanel.setRenderer(null);
-            renderer = null;
-        }
+        closeWorld();
         final ProgressBarDialog dialog = new ProgressBarDialog(this, true);
         final World.AsyncLoading loading = new World.AsyncLoading(folder, (world, errors) -> {
             dialog.setVisible(false);
@@ -103,6 +112,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
     }
 
     private void finishedLoadingWorld(World world) {
+        World oldWorld = this.world;
+        this.world = world;
         renderer = new WorldRenderer(world);
         mainarea.setViewportView(renderer);
         renderer.startChunkRendering();
@@ -128,20 +139,56 @@ public class MCWorldInspector extends javax.swing.JFrame {
         };
         renderer.addMouseMotionListener(ma);
         renderer.addMouseListener(ma);
+        firePropertyChange("world", oldWorld, world);
     }
 
-    private void run() {
+    protected abstract class WorldAction extends AbstractAction {
+        @SuppressWarnings("OverridableMethodCallInConstructor")
+        public WorldAction(String name) {
+            super(name);
+            setEnabled(false);
+            MCWorldInspector.this.addPropertyChangeListener(
+                    "world", e -> setEnabled(world != null));
+        }
+    }
+
+    private JMenuBar createMenuBar() {
         JMenuBar menubar = new JMenuBar();
         JMenu filemenu = new JMenu("File");
-        filemenu.add(new AbstractAction("Open") {
+        filemenu.setMnemonic('F');
+        JMenuItem openWorld = filemenu.add(new AbstractAction("Open") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openWorld();
             }
         });
+        openWorld.setMnemonic('O');
+        openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_MASK));
+        JMenuItem closeWorld = filemenu.add(new WorldAction("Close") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                closeWorld();
+            }
+        });
+        closeWorld.setMnemonic('C');
         menubar.add(filemenu);
-        setJMenuBar(menubar);
-        
+        JMenu viewmenu = new JMenu("View");
+        viewmenu.setMnemonic('V');
+        JMenuItem viewLevelDat = viewmenu.add(new WorldAction("level.dat") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(world != null)
+                    NBTTreeModel.displayNBT(MCWorldInspector.this, world.getLevel(), "level.dat");
+            }
+        });
+        viewLevelDat.setMnemonic('l');
+        menubar.add(viewmenu);
+        return menubar;
+    }
+    
+    private void run() {
+        setJMenuBar(createMenuBar());
+
         MouseAdapter mouseAdapter = new MouseAdapter() {
             private int startMouseX;
             private int startMouseY;
@@ -176,7 +223,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
         JTabbedPane tabbed = new JTabbedPane();
         filteredPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue()));
-        tabbed.add("Slime Chunks", slimeChunksPanel);
+        tabbed.add("Misc", simpleThingsPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);
         infoSplitpane.setDividerLocation(900);

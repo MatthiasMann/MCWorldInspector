@@ -5,12 +5,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
@@ -148,63 +148,11 @@ public class Chunk extends XZPosition {
                 .filter(v -> id.equals(v.getString("id")));
     }
     
-    public Stream<Biome> biomes() {
+    public Stream<Biome> biomes(Map<Integer, Biome> biomeRegistry) {
         final NBTIntArray biomes = level.get("Biomes", NBTIntArray.class);
         if(biomes == null)
             return Stream.empty();
-        return biomes.stream().mapToObj(BIOMES::get).filter(Objects::nonNull);
+        return biomes.stream().mapToObj(biomeRegistry::get).filter(Objects::nonNull);
     }
     
-    public static final class Biome implements Comparable<Biome> {
-        public final String name;
-        public final String namespaced_id;
-        public final int numeric_id;
-
-        public Biome(String name, String namespaced_id, int numeric_id) {
-            this.name = name;
-            this.namespaced_id = namespaced_id;
-            this.numeric_id = numeric_id;
-        }
-
-        @Override
-        public int hashCode() {
-            return numeric_id;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof Biome) {
-                return ((Biome)obj).numeric_id == this.numeric_id;
-            }
-            return false;
-        }
-
-        @Override
-        public int compareTo(Biome o) {
-            return name.compareTo(o.name);
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
-    }
-    
-    private final static HashMap<Integer, Biome> BIOMES = new HashMap<>();
-
-    static {
-        Pattern pattern = Pattern.compile("^([^\\t]+)\\t([^\\t]+)\\t(\\d+)$");
-        try(InputStream is = Chunk.class.getResourceAsStream("biomes.txt");
-                InputStreamReader isr = new InputStreamReader(is, "UTF8");
-                BufferedReader br = new BufferedReader(isr)) {
-            br.lines().forEach(line -> {
-                final Matcher m = pattern.matcher(line);
-                if(m.matches()) {
-                    Biome biome = new Biome(m.group(1), m.group(2), Integer.parseInt(m.group(3)));
-                    BIOMES.put(biome.numeric_id, biome);
-                }
-            });
-        } catch(Exception ex) {
-        }
-    }
 }
