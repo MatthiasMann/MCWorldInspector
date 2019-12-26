@@ -1,9 +1,14 @@
 package mcworldinspector;
 
+import java.awt.Component;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.swing.SwingUtilities;
 import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.nbt.NBTTagList;
+import mcworldinspector.nbttree.NBTTreeModel;
 
 /**
  *
@@ -29,6 +34,8 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         btnSlimeChunks = new javax.swing.JButton();
         btnPlayerPos = new javax.swing.JButton();
         btnSpawnChunk = new javax.swing.JButton();
+        btnSearchChests = new javax.swing.JButton();
+        btnLootChests = new javax.swing.JButton();
 
         btnSlimeChunks.setText("Highlight slime chunks");
         btnSlimeChunks.addActionListener(new java.awt.event.ActionListener() {
@@ -51,6 +58,20 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             }
         });
 
+        btnSearchChests.setText("Search chests ...");
+        btnSearchChests.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSearchChestsActionPerformed(evt);
+            }
+        });
+
+        btnLootChests.setText("Highlight loot chests");
+        btnLootChests.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnLootChestsActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -60,7 +81,9 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(btnSlimeChunks, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
                     .addComponent(btnPlayerPos, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(btnSpawnChunk, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(btnSpawnChunk, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(btnSearchChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(btnLootChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -72,7 +95,11 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 .addComponent(btnPlayerPos)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnSpawnChunk)
-                .addContainerGap(201, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnSearchChests)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnLootChests)
+                .addContainerGap(135, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -117,9 +144,62 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             });
     }//GEN-LAST:event_btnSpawnChunkActionPerformed
 
+    private ChestSearchDialog searchChestDlg;
+
+    private void btnSearchChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchChestsActionPerformed
+        if(searchChestDlg == null)
+            searchChestDlg = new ChestSearchDialog(SwingUtilities.getWindowAncestor(this));
+        if(!searchChestDlg.run())
+            return;
+        final String item = searchChestDlg.getItem();
+        final WorldRenderer r = renderer.get();
+        if(r == null)
+            return;
+        r.highlight(new TileEntityHighlighter(tile -> {
+                String id = tile.getString("id");
+                return ("minecraft:chest".equals(id) || "minecraft:barrel".equals(id)) &&
+                        tile.getList("Items", NBTTagCompound.class)
+                                .stream().anyMatch(i -> item.equals(i.getString("id")));
+            }, "Loot chests details for "));
+    }//GEN-LAST:event_btnSearchChestsActionPerformed
+
+    private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed
+        final WorldRenderer r = renderer.get();
+        if(r == null)
+            return;
+        r.highlight(new TileEntityHighlighter(
+                t -> t.getString("LootTable") != null,
+                "Loot chests details for "));
+    }//GEN-LAST:event_btnLootChestsActionPerformed
+
+    private static class TileEntityHighlighter implements WorldRenderer.HighlightSelector {
+        private final Predicate<NBTTagCompound> filter;
+        private final String title;
+
+        public TileEntityHighlighter(Predicate<NBTTagCompound> filter, String title) {
+            this.filter = filter;
+            this.title = title;
+        }
+
+        @Override
+        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+            return world.chunks().filter(chunk ->
+                    chunk.tileEntities().anyMatch(filter))
+                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+        }
+
+        @Override
+        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+            NBTTagList<NBTTagCompound> result = entry.chunk.tileEntities()
+                    .filter(filter).collect(NBTTagList.toTagList(NBTTagCompound.class));
+            NBTTreeModel.displayNBT(parent, result, title + entry);
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnLootChests;
     private javax.swing.JButton btnPlayerPos;
+    private javax.swing.JButton btnSearchChests;
     private javax.swing.JButton btnSlimeChunks;
     private javax.swing.JButton btnSpawnChunk;
     // End of variables declaration//GEN-END:variables

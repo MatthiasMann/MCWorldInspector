@@ -1,16 +1,12 @@
 package mcworldinspector;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
@@ -109,43 +105,45 @@ public class Chunk extends XZPosition {
     public Stream<NBTTagCompound> entities() {
         return level.getList("Entities", NBTTagCompound.class).stream();
     }
-    
+
     public Stream<String> entityTypes() {
-        return level.getList("Entities", NBTTagCompound.class).stream()
-                .flatMap(e -> e.getStringAsStream("id"));
+        return entities().flatMap(toID());
     }
 
     public Stream<MCColor> sheepColors() {
-        return level.getList("Entities", NBTTagCompound.class).stream()
+        return entities()
                 .filter(v -> "minecraft:sheep".equals(v.getString("id")))
                 .flatMap(v -> MCColor.asStream(v.get("Color", Byte.class)));
     }
 
     public Stream<NBTTagCompound> getEntities(String id) {
-        return level.getList("Entities", NBTTagCompound.class).stream()
-                .filter(v -> id.equals(v.getString("id")));
+        return entities().filter(filterByID(id));
+    }
+
+    public Stream<NBTTagCompound> tileEntities() {
+        return level.getList("TileEntities", NBTTagCompound.class).stream();
     }
     
     public Stream<String> tileEntityTypes() {
-        return level.getList("TileEntities", NBTTagCompound.class).stream()
-                .flatMap(e -> e.getStringAsStream("id"));
+        return tileEntities().flatMap(toID());
     }
 
     public Stream<NBTTagCompound> getTileEntities(String id) {
-        return level.getList("TileEntities", NBTTagCompound.class).stream()
-                .filter(v -> id.equals(v.getString("id")));
+        return tileEntities().filter(filterByID(id));
+    }
+
+    public Stream<NBTTagCompound> structures() {
+        return level.getCompound("Structures").getCompound("Starts")
+                .values(NBTTagCompound.class);
     }
 
     public Stream<String> structureTypes() {
-        return level.getCompound("Structures").getCompound("Starts")
-                .values(NBTTagCompound.class).map(v -> v.getString("id"))
+        return structures().map(v -> v.getString("id"))
                 .filter(id -> id != null && !"INVALID".equals(id));
     }
     
     public Stream<NBTTagCompound> getStructures(String id) {
-        return level.getCompound("Structures").getCompound("Starts")
-                .values(NBTTagCompound.class)
-                .filter(v -> id.equals(v.getString("id")));
+        return structures().filter(filterByID(id));
     }
     
     public Stream<Biome> biomes(Map<Integer, Biome> biomeRegistry) {
@@ -154,5 +152,12 @@ public class Chunk extends XZPosition {
             return Stream.empty();
         return biomes.stream().mapToObj(biomeRegistry::get).filter(Objects::nonNull);
     }
-    
+
+    private static Function<NBTTagCompound, Stream<String>> toID() {
+        return e -> e.getStringAsStream("id");
+    }
+
+    private static Predicate<NBTTagCompound> filterByID(String id) {
+        return v -> id.equals(v.getString("id"));
+    }
 }
