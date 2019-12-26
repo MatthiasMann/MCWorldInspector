@@ -57,7 +57,7 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
         @Override
         public Stream<WorldRenderer.HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.tileEntities().anyMatch(entities::contains))
+                    .filter(chunk -> chunk.tileEntityTypes().anyMatch(entities::contains))
                     .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
         }
 

@@ -2,16 +2,21 @@ package mcworldinspector.nbttree;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Objects;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.TreeCellRenderer;
+import mcworldinspector.MCColor;
 import mcworldinspector.jtreetable.AbstractTreeTableModel;
 import mcworldinspector.jtreetable.JTreeTable;
 import mcworldinspector.jtreetable.TreeTableModel;
@@ -39,7 +44,12 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     public static void displayNBT(Component parent, NBTBase nbt, String title) {
         NBTTreeModel model = new NBTTreeModel(nbt);
         JTreeTable tree = new JTreeTable(model);
+        tree.getTree().setRootVisible(false);
+        tree.getTree().setShowsRootHandles(true);
         tree.setCellRenderer(new NBTTreeCellRenderer());
+        tree.setDefaultRenderer(TextWithIcon.class, new TextWithIconRenderer());
+        if(model.getChildCount(model.getRoot()) == 1)
+            tree.getTree().expandRow(0);
         JScrollPane pane = new JScrollPane(tree);
         pane.setMinimumSize(new Dimension(1000, 600));
         pane.setPreferredSize(new Dimension(1000, 600));
@@ -65,7 +75,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     public Class<?> getColumnClass(int column) {
         switch (column) {
             case 0: return TreeTableModel.class;
-            case 1: return String.class;
+            case 1: return TextWithIcon.class;
             default:
                 throw new AssertionError();
         }
@@ -112,8 +122,19 @@ public class NBTTreeModel extends AbstractTreeTableModel {
             ((NBTTagCompound)obj).entrySet().stream()
                     .sorted((a,b) -> a.getKey().compareTo(b.getKey()))
                     .forEach(e -> {
-                        final Node node = new Node(e.getKey(), Node.iconForObject(e.getValue()));
-                        makeNode(node, e.getValue());
+                        final Object value = e.getValue();
+                        final Node node = new Node(e.getKey(), Node.iconForObject(value));
+                        MCColor color;
+                        if("Color".equals(e.getKey()) && value instanceof Byte &&
+                                (color = MCColor.fromByte((Byte)value)) != null) {
+                            node.value = new TextWithIcon(color.toString(), getColorIcon(color));
+                        } else if("Pos".equals(e.getKey()) && value instanceof NBTDoubleArray &&
+                                ((NBTDoubleArray)value).size() == 3) {
+                            NBTDoubleArray pos = (NBTDoubleArray)value;
+                            node.value = new TextWithIcon(String.format(
+                                    "<%.1f, %.1f, %.1f>", pos.get(0), pos.get(1), pos.get(2)));
+                        } else
+                            makeNode(node, value);
                         parent.children.add(node);
                     });
         } else if(obj instanceof NBTArray) {
@@ -125,29 +146,75 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                 parent.children.add(node);
             }
         } else {
-            parent.value = Objects.toString(obj);
+            parent.value = new TextWithIcon(Objects.toString(obj));
         }
     }
     
+    private static final EnumMap<MCColor, Icon> COLOR_ICONS = new EnumMap<>(MCColor.class);
+
+    private static Icon getColorIcon(MCColor color) {
+        return COLOR_ICONS.computeIfAbsent(color, col -> {
+            return new Icon() {
+                @Override
+                public void paintIcon(Component c, Graphics g, int x, int y) {
+                    g.setColor(col.getColor());
+                    g.fillRect(x, y, getIconWidth(), getIconHeight());
+                }
+
+                @Override
+                public int getIconWidth() {
+                    return 16;
+                }
+
+                @Override
+                public int getIconHeight() {
+                    return 16;
+                }
+            };
+        });
+    }
+
+    public static class TextWithIcon {
+        public static final TextWithIcon EMPTY = new TextWithIcon("");
+
+        public final String text;
+        public final Icon icon;
+
+        public TextWithIcon(String text) {
+            this.text = text;
+            this.icon = null;
+        }
+
+        public TextWithIcon(String text, Icon icon) {
+            this.text = text;
+            this.icon = icon;
+        }
+    }
+
     public static class Node {
         final ArrayList<Node> children = new ArrayList<>();
         final String label;
-        String value;
-        URL icon;
+        TextWithIcon value;
+        Icon icon;
 
-        private static final HashMap<Class, URL> ICONS = new HashMap<>();
+        private static ImageIcon getIcon(String name) {
+            final URL url = Node.class.getResource(name);
+            return (url != null) ? new ImageIcon(url) : null;
+        }
+
+        private static final HashMap<Class, ImageIcon> ICONS = new HashMap<>();
         static {
-            final URL NBT_BYTE = Node.class.getResource("nbt_byte.png");
-            final URL NBT_SHORT = Node.class.getResource("nbt_short.png");
-            final URL NBT_INT = Node.class.getResource("nbt_int.png");
-            final URL NBT_LONG = Node.class.getResource("nbt_long.png");
-            final URL NBT_FLOAT = Node.class.getResource("nbt_float.png");
-            final URL NBT_DOUBLE = Node.class.getResource("nbt_double.png");
-            final URL NBT_LIST = Node.class.getResource("nbt_list.png");
-            final URL NBT_COMPOUND = Node.class.getResource("nbt_compound.png");
-            final URL NBT_BYTE_ARRAY = Node.class.getResource("nbt_byte_array.png");
-            final URL NBT_INT_ARRAY = Node.class.getResource("nbt_int_array.png");
-            final URL NBT_STRING = Node.class.getResource("nbt_string.png");
+            final ImageIcon NBT_BYTE = getIcon("nbt_byte.png");
+            final ImageIcon NBT_SHORT = getIcon("nbt_short.png");
+            final ImageIcon NBT_INT = getIcon("nbt_int.png");
+            final ImageIcon NBT_LONG = getIcon("nbt_long.png");
+            final ImageIcon NBT_FLOAT = getIcon("nbt_float.png");
+            final ImageIcon NBT_DOUBLE = getIcon("nbt_double.png");
+            final ImageIcon NBT_LIST = getIcon("nbt_list.png");
+            final ImageIcon NBT_COMPOUND = getIcon("nbt_compound.png");
+            final ImageIcon NBT_BYTE_ARRAY = getIcon("nbt_byte_array.png");
+            final ImageIcon NBT_INT_ARRAY = getIcon("nbt_int_array.png");
+            final ImageIcon NBT_STRING = getIcon("nbt_string.png");
             
             ICONS.put(Byte.class, NBT_BYTE);
             ICONS.put(Short.class, NBT_SHORT);
@@ -166,26 +233,33 @@ public class NBTTreeModel extends AbstractTreeTableModel {
             ICONS.put(NBTTagCompound.class, NBT_COMPOUND);
         }
 
-        Node(String label, URL icon) {
+        Node(String label, Icon icon) {
             this.label = label;
-            this.value = "";
+            this.value = TextWithIcon.EMPTY;
             this.icon = icon;
         }
 
-        static URL iconForObject(Object obj) {
+        static ImageIcon iconForObject(Object obj) {
             return (obj != null) ? ICONS.get(obj.getClass()) : null;
         }
     }
     
-    public static class NBTTreeCellRenderer implements TreeCellRenderer {
-        private final JLabel label = new JLabel();
-
+    public static class NBTTreeCellRenderer extends JLabel implements TreeCellRenderer {
         @Override
         public Component getTreeCellRendererComponent(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
             Node n = (Node)value;
-            label.setIcon(n.icon != null ? new ImageIcon(n.icon) : null);
-            label.setText(n.label);
-            return label;
+            setIcon(n.icon);
+            setText(n.label);
+            return this;
+        }
+    }
+    
+    public static class TextWithIconRenderer extends DefaultTableCellRenderer {
+        @Override
+        protected void setValue(Object value) {
+            TextWithIcon t = (TextWithIcon)value;
+            setIcon(t.icon);
+            setText(t.text);
         }
     }
 }

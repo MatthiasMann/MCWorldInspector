@@ -5,12 +5,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
@@ -106,9 +106,19 @@ public class Chunk extends XZPosition {
         return subChunks().flatMap(SubChunk::getBlockTypes);
     }
     
-    public Stream<String> entities() {
-        return level.getList("Entities", NBTTagCompound.class)
-                .stream().map(e -> e.getString("id")).filter(Objects::nonNull);
+    public Stream<NBTTagCompound> entities() {
+        return level.getList("Entities", NBTTagCompound.class).stream();
+    }
+    
+    public Stream<String> entityTypes() {
+        return level.getList("Entities", NBTTagCompound.class).stream()
+                .flatMap(e -> e.getStringAsStream("id"));
+    }
+
+    public Stream<MCColor> sheepColors() {
+        return level.getList("Entities", NBTTagCompound.class).stream()
+                .filter(v -> "minecraft:sheep".equals(v.getString("id")))
+                .flatMap(v -> MCColor.asStream(v.get("Color", Byte.class)));
     }
 
     public Stream<NBTTagCompound> getEntities(String id) {
@@ -116,9 +126,9 @@ public class Chunk extends XZPosition {
                 .filter(v -> id.equals(v.getString("id")));
     }
     
-    public Stream<String> tileEntities() {
-        return level.getList("TileEntities", NBTTagCompound.class)
-                .stream().map(e -> e.getString("id")).filter(Objects::nonNull);
+    public Stream<String> tileEntityTypes() {
+        return level.getList("TileEntities", NBTTagCompound.class).stream()
+                .flatMap(e -> e.getStringAsStream("id"));
     }
 
     public Stream<NBTTagCompound> getTileEntities(String id) {

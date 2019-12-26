@@ -9,6 +9,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
@@ -62,9 +63,29 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
         return type.isInstance(o) ? type.cast(o) : null;
     }
 
+    public<U> U get(String name, Class<U> type, U defaultValue) {
+        Object o = entries.get(name);
+        return type.isInstance(o) ? type.cast(o) : defaultValue;
+    }
+    
+    public IntStream getByteAsStream(String name) {
+        Object o = entries.get(name);
+        return (o instanceof Byte) ? IntStream.of((Byte)o) : IntStream.empty();
+    }
+    
+    public IntStream getIntAsStream(String name) {
+        Object o = entries.get(name);
+        return (o instanceof Integer) ? IntStream.of((Integer)o) : IntStream.empty();
+    }
+
     public String getString(String name) {
         Object o = entries.get(name);
         return (o instanceof String) ? (String)o : null;
+    }
+
+    public Stream<String> getStringAsStream(String name) {
+        Object o = entries.get(name);
+        return (o instanceof String) ? Stream.of((String)o) : Stream.empty();
     }
 
     public NBTTagCompound getCompound(String name) {

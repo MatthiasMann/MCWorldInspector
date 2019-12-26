@@ -29,22 +29,33 @@ import mcworldinspector.utils.FileOffsetError;
  */
 public class World {
     
-    private final NBTTagCompound level;
-    private final HashSet<Chunk> chunks;
-    private final TreeSet<String> blockTypes;
-    private final TreeSet<String> entityTypes;
-    private final TreeSet<String> tileEntityTypes;
-    private final TreeSet<String> structureTypes;
-    private final TreeSet<Chunk.Biome> biomes;
+    private NBTTagCompound level = NBTTagCompound.EMPTY;
+    private final HashSet<Chunk> chunks = new HashSet<>();
+    private final TreeSet<String> blockTypes = new TreeSet<>();
+    private final TreeSet<String> entityTypes = new TreeSet<>();
+    private final TreeSet<MCColor> sheepColors = new TreeSet<>();
+    private final TreeSet<String> tileEntityTypes = new TreeSet<>();
+    private final TreeSet<String> structureTypes = new TreeSet<>();
+    private final TreeSet<Chunk.Biome> biomes = new TreeSet<>();
 
-    public World(NBTTagCompound level, HashSet<Chunk> chunks, TreeSet<String> blockTypes, TreeSet<String> entityTypes, TreeSet<String> tileEntityTypes, TreeSet<String> structureTypes, TreeSet<Chunk.Biome> biomes) {
-        this.level = level;
-        this.chunks = chunks;
-        this.blockTypes = blockTypes;
-        this.entityTypes = entityTypes;
-        this.tileEntityTypes = tileEntityTypes;
-        this.structureTypes = structureTypes;
-        this.biomes = biomes;
+    private World() {
+    }
+
+    private void addChunk(Chunk chunk) {
+        if(chunks.add(chunk)) {
+            chunk.getBlockTypes().forEach(blockTypes::add);
+            chunk.entityTypes().forEach(entityTypes::add);
+            chunk.sheepColors().forEach(sheepColors::add);
+            chunk.tileEntityTypes().forEach(tileEntityTypes::add);
+            chunk.structureTypes().forEach(structureTypes::add);
+            chunk.biomes().forEach(biomes::add);
+        }
+    }
+    
+    private void cleanup() {
+        blockTypes.remove("minecraft:air");
+        blockTypes.remove("minecraft:cave_air");
+        blockTypes.remove("minecraft:bedrock");
     }
 
     public NBTTagCompound getLevel() {
@@ -61,6 +72,10 @@ public class World {
 
     public TreeSet<String> getEntityTypes() {
         return entityTypes;
+    }
+
+    public TreeSet<MCColor> getSheepColors() {
+        return sheepColors;
     }
 
     public TreeSet<String> getTileEntityTypes() {
@@ -91,13 +106,8 @@ public class World {
 
     public static class AsyncLoading {
         private final File folder;
-        private final HashSet<Chunk> chunks = new HashSet<>();
+        private final World world = new World();
         private final ArrayList<FileError> errors = new ArrayList<>();
-        private final TreeSet<String> blockTypes = new TreeSet<>();
-        private final TreeSet<String> entityTypes = new TreeSet<>();
-        private final TreeSet<String> tileEntityTypes = new TreeSet<>();
-        private final TreeSet<String> structureTypes = new TreeSet<>();
-        private final TreeSet<Chunk.Biome> biomes = new TreeSet<>();
         private final AtomicInteger openFiles = new AtomicInteger();
         private final ExecutorService executor = Executors.newWorkStealingPool();
         private transient final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
@@ -105,7 +115,6 @@ public class World {
         private int progress = 0;
         private int total = 0;
         private Iterator<File> files;
-        private NBTTagCompound level = NBTTagCompound.EMPTY;
         private String levelName = "Unknown";
 
         public AsyncLoading(File folder, BiConsumer<World, ArrayList<FileError>> done) {
@@ -175,8 +184,8 @@ public class World {
         
         private void processLevelDat(Expected<NBTTagCompound> v, File file) {
              try {
-                level = v.get();
-                String name = level.getString("LevelName");
+                world.level = v.get();
+                String name = world.level.getString("LevelName");
                 if(name != null && !levelName.equals(name)) {
                     String oldName = levelName;
                     levelName = name;
@@ -213,14 +222,8 @@ public class World {
         private void processResult(Expected<Chunk> v, File file, int offset) {
             try {
                 Chunk chunk = v.get();
-                if(!chunk.isEmpty()) {
-                    chunks.add(chunk);
-                    chunk.getBlockTypes().forEach(blockTypes::add);
-                    chunk.entities().forEach(entityTypes::add);
-                    chunk.tileEntities().forEach(tileEntityTypes::add);
-                    chunk.structureTypes().forEach(structureTypes::add);
-                    chunk.biomes().forEach(biomes::add);
-                }
+                if(!chunk.isEmpty())
+                    world.addChunk(chunk);
             } catch(Exception e) {
                 errors.add(new FileOffsetError(file, offset, e));
             }
@@ -238,11 +241,8 @@ public class World {
             if(progress == total) {
                 assert(!files.hasNext());
                 executor.shutdown();
-                blockTypes.remove("minecraft:air");
-                blockTypes.remove("minecraft:cave_air");
-                blockTypes.remove("minecraft:bedrock");
-                done.accept(new World(level, chunks, blockTypes, entityTypes,
-                        tileEntityTypes, structureTypes, biomes), errors);
+                world.cleanup();
+                done.accept(world, errors);
             }
         }
     }
