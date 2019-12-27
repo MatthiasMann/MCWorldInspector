@@ -11,10 +11,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
-import java.util.zip.Deflater;
 import java.util.zip.Inflater;
+import mcworldinspector.utils.FileHelpers;
 
 /**
  *
@@ -122,61 +121,18 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
     }
 
     public static NBTTagCompound parseGZip(ByteBuffer compressed) throws IOException, DataFormatException {
-        if((compressed.get() & 255) != 0x1f)
-            throw new IOException("Error in GZIP header, bad magic code");
-        if((compressed.get() & 255) != 0x8b)
-            throw new IOException("Error in GZIP header, bad magic code");
-        if((compressed.get() & 255) != Deflater.DEFLATED)
-            throw new IOException("Error in GZIP header, data not in deflate format");
-        CRC32 headCRC = new CRC32();
-        headCRC.update(0x1f);
-        headCRC.update(0x8b);
-        headCRC.update(Deflater.DEFLATED);
-        final int flags = compressed.get() & 255;
-        headCRC.update(flags);   
-        if ((flags & 0xd0) != 0)
-           throw new IOException("Reserved flag bits in GZIP header != 0");
-        // skip the modification time, extra flags, and OS type
-        for (int i=0; i< 6; i++)
-            headCRC.update(compressed.get() & 255);
-        // read extra field
-        if ((flags & 0x04) != 0) {
-            /* Skip subfield id */
-            for (int i = 0; i < 2; i++)
-                headCRC.update(compressed.get() & 255);
-            final int len1 = compressed.get() & 255;
-            final int len2 = compressed.get() & 255;
-            headCRC.update(len1);
-            headCRC.update(len2);
-            final int len = (len1 << 8) | len2;
-            for (int i = 0; i < len; i++)
-                headCRC.update(compressed.get() & 255);
-        }
-        // read file name
-        if ((flags & 0x08) != 0) {
-            int c;
-            do {
-                c = compressed.get() & 255;
-                headCRC.update(c);
-            } while(c > 0);
-        }
-        // read comment
-        if ((flags & 0x10) != 0) {
-            int c;
-            do {
-                c = compressed.get() & 255;
-                headCRC.update(c);
-            } while(c > 0);
-        }
-        // read header CRC
-        if ((flags & 0x02) != 0) {
-            final int crc0 = compressed.get() & 255;
-            final int crc1 = compressed.get() & 255;
-            final int crc = (crc0 << 8) | crc1;
-            if (crc != ((int)headCRC.getValue() & 0xffff))
-                throw new IOException("Header CRC value mismatch");
-        }
+        FileHelpers.parseGZipHeader(compressed);
         return parseInflate(compressed, true);
+    }
+
+    public static NBTTagCompound parseGuess(ByteBuffer data) throws IOException, DataFormatException {
+        if(data.remaining() > 3 &&
+                (data.get(0) & 255) == 10 &&
+                data.getChar(1) == 0)
+            return parse(data);
+        if(FileHelpers.isGZip(data))
+            return parseGZip(data);
+        return parseInflate(data, false);
     }
 
     private static Object parseNBTValue(ByteBuffer data, int tag) {

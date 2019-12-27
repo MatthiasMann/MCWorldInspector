@@ -3,11 +3,8 @@ package mcworldinspector;
 import java.awt.EventQueue;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +23,7 @@ import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.Expected;
 import mcworldinspector.utils.FileError;
+import mcworldinspector.utils.FileHelpers;
 import mcworldinspector.utils.FileOffsetError;
 
 /**
@@ -196,17 +194,7 @@ public class World {
         }
 
         private NBTTagCompound loadLevelDat(File file) throws Exception {
-            try(RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-                long length = raf.length();
-                if(length > (1<<20))
-                    throw new IOException("level.dat too large");
-                ByteBuffer b = ByteBuffer.allocate((int)length + 1);
-                if(raf.getChannel().read(b) != length)
-                    throw new EOFException("Unable to read level.dat");
-                b.put((byte)0); // dummy byte for Inflate
-                b.flip();
-                return NBTTagCompound.parseGZip(b);
-            }
+            return NBTTagCompound.parseGZip(FileHelpers.loadFile(file, 1<<20));
         }
         
         private void processLevelDat(Expected<NBTTagCompound> v, File file) {

@@ -7,6 +7,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.TreeMap;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
@@ -24,7 +26,10 @@ import javax.swing.JTextField;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbttree.NBTTreeModel;
+import mcworldinspector.utils.FileError;
+import mcworldinspector.utils.FileHelpers;
 import mcworldinspector.utils.MultipleErrorsDialog;
 import mcworldinspector.utils.StatusBar;
 
@@ -142,6 +147,23 @@ public class MCWorldInspector extends javax.swing.JFrame {
         firePropertyChange("world", oldWorld, world);
     }
 
+    @SuppressWarnings("UseSpecificCatch")
+    private void openNBT() {
+        JFileChooser jfc = new JFileChooser(preferences.get("recent_folder_nbt", "."));
+        if(jfc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            preferences.put("recent_folder_nbt", jfc.getCurrentDirectory().getAbsolutePath());
+            final File file = jfc.getSelectedFile();
+            try {
+                ByteBuffer buffer = FileHelpers.loadFile(file, 1<<20);
+                NBTTagCompound nbt = NBTTagCompound.parseGuess(buffer);
+                NBTTreeModel.displayNBT(this, nbt, file.getAbsolutePath());
+            } catch(Exception ex) {
+                MultipleErrorsDialog dlg = new MultipleErrorsDialog(this, true,
+                        Collections.singletonList(new FileError(file, ex)));
+                dlg.setVisible(true);
+            }
+        }
+    }
     protected abstract class WorldAction extends AbstractAction {
         @SuppressWarnings("OverridableMethodCallInConstructor")
         public WorldAction(String name) {
@@ -156,7 +178,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         JMenuBar menubar = new JMenuBar();
         JMenu filemenu = new JMenu("File");
         filemenu.setMnemonic('F');
-        JMenuItem openWorld = filemenu.add(new AbstractAction("Open") {
+        JMenuItem openWorld = filemenu.add(new AbstractAction("Open world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openWorld();
@@ -164,13 +186,21 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         openWorld.setMnemonic('O');
         openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_MASK));
-        JMenuItem closeWorld = filemenu.add(new WorldAction("Close") {
+        JMenuItem closeWorld = filemenu.add(new WorldAction("Close world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 closeWorld();
             }
         });
         closeWorld.setMnemonic('C');
+        filemenu.addSeparator();
+        JMenuItem openNBT = filemenu.add(new AbstractAction("Open NBT") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                openNBT();
+            }
+        });
+        openNBT.setMnemonic('N');
         menubar.add(filemenu);
         JMenu viewmenu = new JMenu("View");
         viewmenu.setMnemonic('V');

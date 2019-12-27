@@ -124,17 +124,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                     .forEach(e -> {
                         final Object value = e.getValue();
                         final Node node = new Node(e.getKey(), Node.iconForObject(value));
-                        MCColor color;
-                        if("Color".equals(e.getKey()) && value instanceof Byte &&
-                                (color = MCColor.fromByte((Byte)value)) != null) {
-                            node.value = new TextWithIcon(color.toString(), getColorIcon(color));
-                        } else if("Pos".equals(e.getKey()) && value instanceof NBTDoubleArray &&
-                                ((NBTDoubleArray)value).size() == 3) {
-                            NBTDoubleArray pos = (NBTDoubleArray)value;
-                            node.value = new TextWithIcon(String.format(
-                                    "<%.1f, %.1f, %.1f>", pos.get(0), pos.get(1), pos.get(2)));
-                        } else
-                            makeNode(node, value);
+                        makeChildNodes(e.getKey(), node, value);
                         parent.children.add(node);
                     });
         } else if(obj instanceof NBTArray) {
@@ -148,6 +138,50 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         } else {
             parent.value = new TextWithIcon(Objects.toString(obj));
         }
+    }
+    
+    private static final String POS_FORMAT_INT = "<%d, %d, %d>";
+    private static final String POS_FORMAT_DOUBLE = "<%.1f, %.1f, %.1f>";
+
+    private static void makeChildNodes(String name, Node node, Object value) {
+        MCColor color;
+        if("Color".equalsIgnoreCase(name) && value instanceof Byte &&
+                (color = MCColor.fromByte((Byte)value)) != null) {
+            node.value = new TextWithIcon(color.toString(), getColorIcon(color));
+            return;
+        }
+        if(value instanceof NBTDoubleArray) {
+            NBTDoubleArray pos = (NBTDoubleArray)value;
+            if(pos.size() == 3) {
+                node.value = new TextWithIcon(String.format(POS_FORMAT_DOUBLE, pos.get(0), pos.get(1), pos.get(2)));
+                return;
+            }
+        }
+        if(value instanceof NBTIntArray) {
+            NBTIntArray pos = (NBTIntArray)value;
+            if(pos.size() == 3) {
+                node.value = new TextWithIcon(String.format(POS_FORMAT_INT, pos.get(0), pos.get(1), pos.get(2)));
+                return;
+            }
+        }
+        if(value instanceof NBTTagCompound) {
+            NBTTagCompound nbt = (NBTTagCompound)value;
+            if(nbt.size() == 3) {
+                Object x = nbt.get("x");
+                Object y = nbt.get("y");
+                Object z = nbt.get("z");
+                if(x instanceof Integer && y instanceof Integer && z instanceof Integer) {
+                    node.value = new TextWithIcon(String.format(POS_FORMAT_INT, x, y, z));
+                    return;
+                }
+                if((x instanceof Double && y instanceof Double && z instanceof Double) ||
+                        (x instanceof Float && y instanceof Float && z instanceof Float)) {
+                    node.value = new TextWithIcon(String.format(POS_FORMAT_DOUBLE, x, y, z));
+                    return;
+                }
+            }
+        }
+        makeNode(node, value);
     }
     
     private static final EnumMap<MCColor, Icon> COLOR_ICONS = new EnumMap<>(MCColor.class);
