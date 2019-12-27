@@ -79,7 +79,7 @@ public class WorldRenderer extends JComponent {
             world.chunks().forEach(chunk -> regions.computeIfAbsent(
                     chunk.getRegionStart(), pos -> new ArrayList<>()).add(chunk));
             regions.entrySet().forEach(e -> executor.submit(() -> {
-                BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_BYTE_INDEXED, COLOR_MAP);
+                BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
                 e.getValue().forEach(chunk -> img.getRaster().setDataElements(
                         chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16, renderChunk(chunk)));
                 EventQueue.invokeLater(() -> {
@@ -176,54 +176,47 @@ public class WorldRenderer extends JComponent {
 
     static class WildcardEntry {
         final Pattern pattern;
-        final byte index;
+        final int color;
 
-        public WildcardEntry(String pattern, byte index) {
+        public WildcardEntry(String pattern, int color) {
             this.pattern = Pattern.compile(pattern);
-            this.index = index;
+            this.color = color;
         }
-        public byte getIndex() {
-            return index;
+
+        public int getColor() {
+            return color;
         }
     }
 
-    static final HashMap<String, Byte> BLOCK_TO_COLORMAP = new HashMap<>();
+    static final HashMap<String, Integer> BLOCK_TO_COLORMAP = new HashMap<>();
     static final ArrayList<WildcardEntry> WILDCARDS = new ArrayList<>();
-    static final IndexColorModel COLOR_MAP;
 
     static {
-        int[] colorMapValues = new int[256];
-        int nextIndex = 1;
-        
         try(InputStream is=WorldRenderer.class.getResourceAsStream("blockmap.txt");
                 InputStreamReader isr=new InputStreamReader(is);
                 BufferedReader br=new BufferedReader(isr)) {
-            String line;
-            while((line=br.readLine()) != null) {
-                line = line.trim();
-                if(line.startsWith("#"))
-                    continue;
+            br.lines().map(String::trim)
+                    .filter(line -> !line.startsWith("#"))
+                    .forEach(line -> {
                 if(line.startsWith("x0"))
                     line = line.substring(2);
                 try {
                     int color = Integer.parseInt(line.substring(0, 6), 16);
+                    color |= 0xFF000000;    // set alpha to opaque
                     String name = line.substring(7);
                     if(name.startsWith("^"))
-                        WILDCARDS.add(new WildcardEntry(name, (byte)nextIndex));
+                        WILDCARDS.add(new WildcardEntry(name, color));
                     else
-                        BLOCK_TO_COLORMAP.put(name, (byte)nextIndex);
-                    colorMapValues[nextIndex++] = color;
+                        BLOCK_TO_COLORMAP.put(name, color);
                 } catch(IllegalArgumentException ex) {
                 }
-            }
+            });
         } catch(IOException ex) {
         }
-
-        COLOR_MAP = new IndexColorModel(8, colorMapValues.length, colorMapValues, 0, false, 0, DataBuffer.TYPE_BYTE);
     }
 
-    private static byte[] renderChunk(Chunk chunk) {
-        byte[] data = new byte[256];
+    private static int[] renderChunk(Chunk chunk) {
+        int[] data = new int[256];
         for(int z=0 ; z<16 ; z++) {
             for(int x=0 ; x<16 ; x++) {
                 NBTTagCompound block = chunk.getTopBlock(x, z);
@@ -236,14 +229,14 @@ public class WorldRenderer extends JComponent {
         return data;
     }
     
-    private static byte getBlockColorIndex(String name) {
+    private static int getBlockColorIndex(String name) {
         return BLOCK_TO_COLORMAP.computeIfAbsent(name, n -> {
-            Optional<Byte> matched = WILDCARDS.stream().filter(
+            Optional<Integer> matched = WILDCARDS.stream().filter(
                     e -> e.pattern.matcher(n).matches())
-                    .findAny().map(WildcardEntry::getIndex);
+                    .findAny().map(WildcardEntry::getColor);
             if(!matched.isPresent())
                 System.out.println("Unknown block type: " + n);
-            return matched.orElse((byte)0);
+            return matched.orElse(0);
         });
     }
     
