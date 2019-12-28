@@ -58,23 +58,28 @@ public class SubChunk {
         return palette.get(getBlockIndex(x, y, z));
     }
 
-    public NBTTagCompound getTopBlock(int x, int z) {
-            for(int y=16 ; y-->0 ;) {
-                int index = getBlockIndex(x, y, z);
-                if(index != air_index && index != cave_air_index) {
-                    try {
-                        return palette.get(index);
-                    } catch(IndexOutOfBoundsException ex) {
-                        int pos = (y*256+z*16+x)*bits_per_blockstate;
-                        System.err.println("x="+x+" y="+y+" z="+z+
-                                " bits_per_blockstate="+bits_per_blockstate+
-                                " bitpos="+(pos>>6)+":"+(pos&63));
-                    }
+    public boolean isAir(int x, int y, int z) {
+        int index = getBlockIndex(x, y, z);
+        return index == air_index || index == cave_air_index;
+    }
+
+    public NBTTagCompound getTopBlockBelowLayer(int x, int y, int z) {
+        do {
+            int index = getBlockIndex(x, y, z);
+            if(index != air_index && index != cave_air_index) {
+                try {
+                    return palette.get(index);
+                } catch(IndexOutOfBoundsException ex) {
+                    int pos = (y*256+z*16+x)*bits_per_blockstate;
+                    System.err.println("x="+x+" y="+y+" z="+z+
+                            " bits_per_blockstate="+bits_per_blockstate+
+                            " bitpos="+(pos>>6)+":"+(pos&63));
                 }
             }
+        } while (y-- > 0);
         return null;
     }
-    
+
     public static class BlockInfo extends BlockPos {
         public final NBTTagCompound block;
 

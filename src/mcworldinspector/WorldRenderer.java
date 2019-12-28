@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -42,6 +43,9 @@ public class WorldRenderer extends JComponent {
     private final int max_x;
     private final int max_z;
     private final HashMap<XZPosition, BufferedImage> images = new HashMap<>();
+    /** NOTE: must use single threaded worker as the BLOCK_TO_COLORMAP is shared */
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final AtomicInteger asyncRenderingGeneration = new AtomicInteger();
 
     private List<HighlightEntry> highlights = Collections.EMPTY_LIST;
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
@@ -67,32 +71,32 @@ public class WorldRenderer extends JComponent {
             highlight_index = (highlight_index + 1) % HIGHLIGHT_COLORS.length;
             repaint();
         });
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                executor.shutdownNow();
+            }
+        });
     }
     
-    public void startChunkRendering() {
-        // NOTE: must use single threaded worker as the BLOCK_TO_COLORMAP is shared
-        final ExecutorService executor = Executors.newSingleThreadExecutor();
+    public void startChunkRendering(Function<Chunk, int[]> chunkRenderer) {
+        final int generation = asyncRenderingGeneration.incrementAndGet();
         executor.submit(() -> {
             HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>();
             world.chunks().forEach(chunk -> regions.computeIfAbsent(
                     chunk.getRegionStart(), pos -> new ArrayList<>()).add(chunk));
             regions.entrySet().forEach(e -> executor.submit(() -> {
+                if(generation != asyncRenderingGeneration.get())
+                    return;
                 BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
                 e.getValue().forEach(chunk -> img.getRaster().setDataElements(
-                        chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16, renderChunk(chunk)));
+                        chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16, chunkRenderer.apply(chunk)));
                 EventQueue.invokeLater(() -> {
                     final XZPosition p = e.getKey();
                     images.put(p, img);
                     repaint((p.x - min_x) * 16, (p.z - min_z) * 16, 32*16, 32*16);
                 });
             }));
-            executor.shutdown();
-        });
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentHidden(ComponentEvent e) {
-                executor.shutdownNow();
-            }
         });
     }
 
@@ -151,6 +155,10 @@ public class WorldRenderer extends JComponent {
 
     @Override
     protected void paintComponent(Graphics g) {
+        final Rectangle clipBounds = g.getClipBounds();
+        g.setColor(Color.BLACK);
+        g.fillRect(clipBounds.x, clipBounds.y, clipBounds.width, clipBounds.height);
+
         images.entrySet().forEach(i -> {
             final XZPosition p = i.getKey();
             g.drawImage(i.getValue(), (p.x - min_x) * 16, (p.z - min_z) * 16, this);
@@ -213,7 +221,7 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    private static int[] renderChunk(Chunk chunk) {
+    public static int[] renderChunk(Chunk chunk) {
         int[] data = new int[256];
         for(int z=0 ; z<16 ; z++) {
             for(int x=0 ; x<16 ; x++) {
@@ -221,6 +229,22 @@ public class WorldRenderer extends JComponent {
                 if(block != null) {
                     String name = block.getString("Name");
                     data[x+z*16] = getBlockColorIndex(name);
+                }
+            }
+        }
+        return data;
+    }
+
+    public static int[] renderChunkLayer(Chunk chunk, int y) {
+        int[] data = new int[256];
+        for(int z=0 ; z<16 ; z++) {
+            for(int x=0 ; x<16 ; x++) {
+                if(chunk.isAir(x, y, z)) {
+                    NBTTagCompound block = chunk.getTopBlockBelowLayer(x, y - 1, z);
+                    if(block != null) {
+                        String name = block.getString("Name");
+                        data[x+z*16] = getBlockColorIndex(name);
+                    }
                 }
             }
         }

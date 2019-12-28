@@ -83,6 +83,25 @@ public class Chunk extends XZPosition {
         return null;
     }
 
+    public boolean isAir(int x, int y, int z) {
+        final SubChunk sc = subchunks[y >> 4];
+        return (sc == null) || sc.isAir(x, y & 15, z);
+    }
+
+    public NBTTagCompound getTopBlockBelowLayer(int x, int y, int z) {
+        for(;;) {
+            final SubChunk sc = subchunks[y >> 4];
+            if(sc != null) {
+                final NBTTagCompound block = sc.getTopBlockBelowLayer(x, y & 15, z);
+                if(block != null)
+                    return block;
+            }
+            if(y <= 15)
+                return null;
+            y = (y & ~15) - 16;
+        }
+    }
+
     public Stream<SubChunk.BlockInfo> findBlocks(String blockType) {
         return subChunks().flatMap(sc -> sc.findBlocks(blockType,
                 new BlockPos(x << 4, sc.getGlobalY(), z << 4)));

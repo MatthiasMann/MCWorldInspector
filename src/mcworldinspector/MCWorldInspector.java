@@ -50,6 +50,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final JScrollPane mainarea = new JScrollPane();
     private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
     private final SimpleThingsPanel simpleThingsPanel = new SimpleThingsPanel(this::getRenderer);
+    private final RenderOptionsPanel renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
     private final HighlightListPanel highlightListPanel = new HighlightListPanel();
     private final StatusBar statusBar = new StatusBar();
     private final JTextField statusBarCursorPos = new JTextField();
@@ -121,7 +122,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         this.world = world;
         renderer = new WorldRenderer(world);
         mainarea.setViewportView(renderer);
-        renderer.startChunkRendering();
+        renderChunks();
         highlightListPanel.setRenderer(renderer);
         filteredPanels.values().forEach(p -> p.setWorld(world));
         MouseAdapter ma = new MouseAdapter() {
@@ -145,6 +146,20 @@ public class MCWorldInspector extends javax.swing.JFrame {
         renderer.addMouseMotionListener(ma);
         renderer.addMouseListener(ma);
         firePropertyChange("world", oldWorld, world);
+    }
+
+    private void renderChunks() {
+        if(renderer != null) {
+            switch (renderOptionsPanel.getMode()) {
+                case SURFACE:
+                    renderer.startChunkRendering(WorldRenderer::renderChunk);
+                    break;
+                case UNDERGROUND: {
+                    final int layer = renderOptionsPanel.getLayer();
+                    renderer.startChunkRendering(c -> WorldRenderer.renderChunkLayer(c, layer));
+                }
+            }
+        }
     }
 
     @SuppressWarnings("UseSpecificCatch")
@@ -254,6 +269,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         JTabbedPane tabbed = new JTabbedPane();
         filteredPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue()));
         tabbed.add("Misc", simpleThingsPanel);
+        tabbed.add("Render Options", renderOptionsPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);
         infoSplitpane.setDividerLocation(900);
