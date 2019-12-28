@@ -33,7 +33,7 @@ public class Chunk extends XZPosition {
             NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
             if(y >= 0 && y < subchunks.length && !palette.isEmpty() &&
                     blockStates != null && !blockStates.isEmpty())
-                subchunks[y] = new SubChunk(palette, blockStates, (byte)y);
+                subchunks[y] = new SubChunk(palette, blockStates, (byte)(y << 4));
         }
     }
 
@@ -83,8 +83,9 @@ public class Chunk extends XZPosition {
         return null;
     }
 
-    public Stream<SubChunk.BlockPos> findBlocks(String blockType) {
-        return subChunks().flatMap(sc -> sc.findBlocks(blockType));
+    public Stream<SubChunk.BlockInfo> findBlocks(String blockType) {
+        return subChunks().flatMap(sc -> sc.findBlocks(blockType,
+                new BlockPos(x << 4, sc.getGlobalY(), z << 4)));
     }
     
     public void forEach(Consumer<SubChunk> c) {

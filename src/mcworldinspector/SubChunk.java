@@ -1,6 +1,8 @@
 package mcworldinspector;
 
 import java.util.BitSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTLongArray;
@@ -25,7 +27,7 @@ public class SubChunk {
         this.blockStates = blockStates;
         this.bits_per_blockstate = (byte)Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size()-1));
         this.globalY = globalY;
-        
+
         byte tmp_air_index = -1;
         byte tmp_cave_air_index = -1;
         for(int idx=0 ; idx<palette.size() ; ++idx) {
@@ -38,7 +40,11 @@ public class SubChunk {
         this.air_index = tmp_air_index;
         this.cave_air_index = tmp_cave_air_index;
     }
-    
+
+    public int getGlobalY() {
+        return globalY & 255;
+    }
+
     public Stream<String> getBlockTypes() {
         return palette.stream().map(e -> e.getString("Name"));
     }
@@ -69,20 +75,36 @@ public class SubChunk {
         return null;
     }
     
-    public static class BlockPos {
-        public final int x;
-        public final int y;
-        public final int z;
+    public static class BlockInfo extends BlockPos {
+        public final NBTTagCompound block;
 
-        public BlockPos(int x, int y, int z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+        public BlockInfo(int x, int y, int z, NBTTagCompound block) {
+            super(x, y, z);
+            this.block = block;
+        }
+
+        BlockInfo(int pos, BlockPos offset, NBTTagCompound block) {
+            super((pos & 15) + offset.x, (pos >> 8) + offset.y, ((pos >> 4) & 15) + offset.z);
+            this.block = block;
         }
 
         @Override
         public String toString() {
-            return "X=" + x + " Y=" + y + " Z=" + z;
+            StringBuilder sb = new StringBuilder();
+            sb.append('<').append(x)
+                    .append(", ").append(y)
+                    .append(", ").append(z)
+                    .append("> = ").append(block.getString("Name"));
+            final NBTTagCompound properties = block.getCompound("Properties");
+            if(!properties.isEmpty()) {
+                String sep = "{";
+                for(Map.Entry<String, Object> p : properties.entrySet()) {
+                    sb.append(sep).append(p.getKey()).append('=').append(Objects.toString(p.getValue()));
+                    sep = ", ";
+                }
+                sb.append('}');
+            }
+            return sb.toString();
         }
     }
 
@@ -94,25 +116,31 @@ public class SubChunk {
         return -1;
     }
 
-    private IntStream findBlocksInt(String blockType) {
+    public Stream<BlockInfo> findBlocks(String blockType, BlockPos offset) {
         final int bits = bits_per_blockstate & 255;
         final NBTLongArray bs = blockStates;
         final int index = findBlockTypeIndex(0, blockType);
         if(index < 0)
-            return IntStream.empty();
+            return Stream.empty();
         int index2 = findBlockTypeIndex(index+1, blockType);
-        if(index2 < 0)
-            return IntStream.range(0, 4096).filter(pos -> index == bs.getBits(pos*bits, bits));
+        if(index2 < 0) {
+            final NBTTagCompound block = palette.get(index);
+            return IntStream.range(0, 4096)
+                    .filter(pos -> index == bs.getBits(pos*bits, bits))
+                    .mapToObj(pos -> new BlockInfo(pos, offset, block));
+        }
         final BitSet set = new BitSet();
         do {
             set.set(index2);
             index2 = findBlockTypeIndex(index2+1, blockType);
         } while(index2 >= 0);
-        return IntStream.range(0, 4096).filter(pos -> set.get(bs.getBits(pos*bits, bits)));
-    }
-
-    public Stream<BlockPos> findBlocks(String blockType) {
-        return findBlocksInt(blockType).mapToObj(pos -> new BlockPos(pos & 15,
-                                (pos >> 8) + (globalY & 255), (pos >> 4) & 15));
+        return IntStream.range(0, 4096)
+                .mapToObj(pos -> {
+                    int value = bs.getBits(pos*bits, bits);
+                    if(!set.get(value))
+                        return null;
+                    return new BlockInfo(pos, offset, palette.get(value));
+                })
+                .filter(Objects::nonNull);
     }
 }

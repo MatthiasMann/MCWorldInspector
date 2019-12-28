@@ -10,8 +10,6 @@ import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.IndexColorModel;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -261,7 +259,9 @@ public class WorldRenderer extends JComponent {
 
         @Override
         public String toString() {
-            return "X=" + getX()*16 + " Z=" + getZ()*16;
+            final int x = getX() << 4;
+            final int z = getZ() << 4;
+            return "Chunk <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
         }
     }
 
