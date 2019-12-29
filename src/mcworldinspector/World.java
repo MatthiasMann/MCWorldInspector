@@ -1,6 +1,5 @@
 package mcworldinspector;
 
-import java.awt.EventQueue;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.File;
@@ -12,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.utils.Expected;
+import mcworldinspector.utils.AsyncTask;
 import mcworldinspector.utils.FileError;
 import mcworldinspector.utils.FileHelpers;
 import mcworldinspector.utils.FileOffsetError;
@@ -40,7 +40,7 @@ public class World {
     private final TreeSet<MCColor> sheepColors = new TreeSet<>();
     private final TreeSet<String> tileEntityTypes = new TreeSet<>();
     private final TreeSet<String> structureTypes = new TreeSet<>();
-    private final TreeSet<Biome> biomes = new TreeSet<>();
+    private Set<Biome> biomes = Collections.EMPTY_SET;
 
     private World() {
     }
@@ -73,7 +73,9 @@ public class World {
         if(biomeRegistry.isEmpty())
             biomeRegistry = Biome.VANILLA_BIOMES;
 
-        chunks.values().stream().flatMap(c -> c.biomes(biomeRegistry)).forEach(biomes::add);
+        biomes = chunks.values().parallelStream()
+                .flatMap(c -> c.biomes(biomeRegistry))
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     public NBTTagCompound getLevel() {
@@ -116,7 +118,7 @@ public class World {
         return biomeRegistry;
     }
 
-    public TreeSet<Biome> getBiomes() {
+    public Set<Biome> getBiomes() {
         return biomes;
     }
 
@@ -129,8 +131,25 @@ public class World {
         return seed != null ? seed : 0;
     }
 
+    public NBTDoubleArray getPlayerPos() {
+        return level.getCompound("Data")
+                    .getCompound("Player").get("Pos", NBTDoubleArray.class);
+    }
+
+    public Chunk getPlayerChunk() {
+        NBTDoubleArray pos = getPlayerPos();
+        return (pos != null) ? getChunk(pos) : null;
+    }
+
+    public Chunk getSpawnChunk() {
+        NBTTagCompound data = level.getCompound("Data");
+        Integer spawnX = data.get("SpawnX", Integer.class);
+        Integer spawnZ = data.get("SpawnZ", Integer.class);
+        return (spawnX != null && spawnZ != null) ?
+                getChunk(spawnX >> 4, spawnZ >> 4) : null;
+    }
+
     public static class AsyncLoading {
-        private final File folder;
         private final World world = new World();
         private final ArrayList<FileError> errors = new ArrayList<>();
         private final AtomicInteger openFiles = new AtomicInteger();
@@ -142,34 +161,37 @@ public class World {
         private Iterator<File> files;
         private String levelName = "Unknown";
 
-        public AsyncLoading(File folder, BiConsumer<World, ArrayList<FileError>> done) {
-            this.folder = folder;
+        public AsyncLoading(BiConsumer<World, ArrayList<FileError>> done) {
             this.done = done;
         }
 
-        public boolean start() {
+        public boolean start(File folder) {
             final File[] fileList = folder.listFiles((dir, name) -> name.endsWith(".mca"));
             if(fileList == null || fileList.length == 0)
                 return false;
+
             assert(total == 0);
             total = fileList.length;
             files = Arrays.asList(fileList).iterator();
-            submitAsyncLoads();
-            
-            File path = folder;
-            while(path != null) {
-                File file = new File(path, "level.dat"); 
-                if(file.exists()) {
-                    ++total;
-                    executor.submit(() -> {
-                        final Expected<NBTTagCompound> nbt =
-                                Expected.wrap(() -> loadLevelDat(file));
-                        EventQueue.invokeLater(() -> processLevelDat(nbt, file));
-                    });
-                    break;
-                }
-                path = path.getParentFile();
+
+            File levelDatFile = FileHelpers.findFileThroughParents(folder, "level.dat", 2);
+            if(levelDatFile != null) {
+                ++total;
+                AsyncTask.submit(executor, () -> loadLevelDat(levelDatFile),
+                        result -> {
+                            result.andThen(level -> {
+                                world.level = level;
+                                String oldName = levelName;
+                                levelName = level.getCompound("Data").getString("LevelName");
+                                propertyChangeSupport.firePropertyChange(
+                                        "levelName", oldName, levelName);
+                            }, ex -> errors.add(new FileError(levelDatFile, ex)));
+                            incProgress();
+                            checkDone();
+                        });
             }
+
+            submitAsyncLoads();
             return true;
         }
 
@@ -196,22 +218,6 @@ public class World {
         private NBTTagCompound loadLevelDat(File file) throws Exception {
             return NBTTagCompound.parseGZip(FileHelpers.loadFile(file, 1<<20));
         }
-        
-        private void processLevelDat(Expected<NBTTagCompound> v, File file) {
-             try {
-                world.level = v.get();
-                String name = world.level.getCompound("Data").getString("LevelName");
-                if(name != null && !levelName.equals(name)) {
-                    String oldName = levelName;
-                    levelName = name;
-                    propertyChangeSupport.firePropertyChange("levelName", oldName, name);
-                }
-            } catch (Exception ex) {
-                errors.add(new FileError(file, ex));
-            }
-            incProgress();
-            checkDone();
-        }
 
         private void submitAsyncLoads() {
             int oldTotal = total;
@@ -220,31 +226,24 @@ public class World {
                 final File file = files.next();
                 try {
                     total += RegionFile.loadAsync(file, executor, openFiles,
-                            (chunk, offset) -> EventQueue.invokeLater(
-                                    () -> processResult(chunk, file, offset)));
+                            (result, offset) -> {
+                                result.andThen(chunk -> {
+                                    if(!chunk.isEmpty())
+                                        world.addChunk(chunk);
+                                }, ex -> errors.add(
+                                        new FileOffsetError(file, offset, ex)));
+                                incProgress();
+                                submitAsyncLoads();
+                                checkDone();
+                            });
                 } catch(IOException ex) {
                     errors.add(new FileError(file, ex));
                 }
                 ++progress;
             }
             
-            if(oldTotal != total)
-                propertyChangeSupport.firePropertyChange("total", oldTotal, total);
-            if(oldProgress != progress)
-                propertyChangeSupport.firePropertyChange("progress", oldProgress, progress);
-        }
-
-        private void processResult(Expected<Chunk> v, File file, int offset) {
-            try {
-                Chunk chunk = v.get();
-                if(!chunk.isEmpty())
-                    world.addChunk(chunk);
-            } catch(Exception e) {
-                errors.add(new FileOffsetError(file, offset, e));
-            }
-            incProgress();
-            submitAsyncLoads();
-            checkDone();
+            propertyChangeSupport.firePropertyChange("total", oldTotal, total);
+            propertyChangeSupport.firePropertyChange("progress", oldProgress, progress);
         }
         
         private void incProgress() {
@@ -253,6 +252,7 @@ public class World {
         }
         
         private void checkDone() {
+            assert(progress <= total);
             if(progress == total) {
                 assert(!files.hasNext());
                 executor.shutdown();

@@ -132,13 +132,9 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         final WorldRenderer r = renderer.get();
         if(r != null)
             r.highlight(world -> {
-                NBTDoubleArray pos = world.getLevel().getCompound("Data")
-                    .getCompound("Player").get("Pos", NBTDoubleArray.class);
-                if(pos != null) {
-                    Chunk chunk = world.getChunk(pos);
-                    if(chunk != null)
-                        return Stream.of(new HighlightEntry(chunk));
-                }
+                Chunk chunk = world.getPlayerChunk();
+                if(chunk != null)
+                    return Stream.of(new HighlightEntry(chunk));
                 return Stream.empty();
             });
     }//GEN-LAST:event_btnPlayerPosActionPerformed
@@ -147,14 +143,9 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         final WorldRenderer r = renderer.get();
         if(r != null)
             r.highlight(world -> {
-                NBTTagCompound data = world.getLevel().getCompound("Data");
-                Integer spawnX = data.get("SpawnX", Integer.class);
-                Integer spawnZ = data.get("SpawnZ", Integer.class);
-                if(spawnX != null && spawnZ != null) {
-                    Chunk chunk = world.getChunk(spawnX >> 4, spawnZ >> 4);
-                    if(chunk != null)
-                        return Stream.of(new HighlightEntry(chunk));
-                }
+                Chunk chunk = world.getSpawnChunk();
+                if(chunk != null)
+                    return Stream.of(new HighlightEntry(chunk));
                 return Stream.empty();
             });
     }//GEN-LAST:event_btnSpawnChunkActionPerformed

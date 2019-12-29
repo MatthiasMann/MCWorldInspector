@@ -2,6 +2,7 @@ package mcworldinspector;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Graphics;
@@ -27,6 +28,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.JComponent;
+import javax.swing.JViewport;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.SimpleListModel;
@@ -122,12 +125,20 @@ public class WorldRenderer extends JComponent {
         repaint();
     }
 
-    public void scrollTo(HighlightEntry e) {
+    public void scrollTo(Chunk chunk, boolean center) {
         Rectangle r = new Rectangle(
-                (e.getX() - min_x) * 16,
-                (e.getZ() - min_z) * 16, 16, 16);
-        r.grow(16, 16);
+                (chunk.getGlobalX() - min_x) * 16,
+                (chunk.getGlobalZ() - min_z) * 16, 16, 16);
+        final Container parent = getParent();
+        if(center && parent instanceof JViewport)
+            r.grow((parent.getWidth() - r.width) / 2, (parent.getHeight() - r.height) / 2);
+        else
+            r.grow(16, 16);
         scrollRectToVisible(r);
+    }
+
+    public void scrollTo(HighlightEntry e) {
+        scrollTo(e.chunk, false);
         flash = e;
         flashMode = FlashMode.RESET;
         highlight_timer.restart();

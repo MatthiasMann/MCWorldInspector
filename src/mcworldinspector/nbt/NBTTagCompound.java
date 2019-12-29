@@ -120,6 +120,10 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
         return parse(ByteBuffer.wrap(Arrays.copyOf(tmp, len)));
     }
 
+    public static NBTTagCompound parseInflate(ByteBuffer compressed) throws DataFormatException, IOException {
+        return parseInflate(compressed, false);
+    }
+
     public static NBTTagCompound parseGZip(ByteBuffer compressed) throws IOException, DataFormatException {
         FileHelpers.parseGZipHeader(compressed);
         return parseInflate(compressed, true);

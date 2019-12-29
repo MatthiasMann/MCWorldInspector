@@ -75,6 +75,14 @@ public class MCWorldInspector extends javax.swing.JFrame {
         return renderer;
     }
 
+    private void scrollToPlayerorSpawn() {
+        Chunk chunk = world.getPlayerChunk();
+        if(chunk == null)
+            chunk = world.getSpawnChunk();
+        if(chunk != null)
+            renderer.scrollTo(chunk, true);
+    }
+
     private void openWorld() {
         JFileChooser jfc = new JFileChooser(preferences.get("recent_folder", "."));
         jfc.addChoosableFileFilter(MCA_FILE_FILTER);
@@ -82,7 +90,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         if(jfc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             preferences.put("recent_folder", jfc.getCurrentDirectory().getAbsolutePath());
             File folder = jfc.getSelectedFile().getParentFile();
-            loadWorld(folder);
+            loadWorld(folder, this::scrollToPlayerorSpawn);
         }
     }
 
@@ -96,16 +104,24 @@ public class MCWorldInspector extends javax.swing.JFrame {
         firePropertyChange("world", oldWorld, world);
     }
 
-    private void loadWorld(File folder) {
+    private void reloadWorld() {
+        Point scrollPos = mainarea.getViewport().getViewPosition();
+        loadWorld(new File(preferences.get("recent_folder", ".")), world != null
+                ? () -> mainarea.getViewport().setViewPosition(scrollPos)
+                : this::scrollToPlayerorSpawn);
+    }
+
+    private void loadWorld(File folder, Runnable postLoadCB) {
         // free up memory
         closeWorld();
         final ProgressBarDialog dialog = new ProgressBarDialog(this, true);
-        final World.AsyncLoading loading = new World.AsyncLoading(folder, (world, errors) -> {
+        final World.AsyncLoading loading = new World.AsyncLoading((newWorld, errors) -> {
             dialog.setVisible(false);
             dialog.dispose();
-            finishedLoadingWorld(world);
+            finishedLoadingWorld(newWorld);
+            postLoadCB.run();
             if(!errors.isEmpty())
-                new MultipleErrorsDialog(this, rootPaneCheckingEnabled, errors).setVisible(true);
+                new MultipleErrorsDialog(this, true, errors).setVisible(true);
         });
         loading.addPropertyChangeListener(e -> {
             switch(e.getPropertyName()) {
@@ -114,7 +130,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 case "levelName": dialog.setTitle("Loading world " + loading.getLevelName()); break;
             }
         });
-        loading.start();
+        loading.start(folder);
         dialog.setTitle("Loading world");
         dialog.setVisible(true);
     }
@@ -217,6 +233,14 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         openWorld.setMnemonic('O');
         openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_MASK));
+        JMenuItem reloadWorld = filemenu.add(new AbstractAction("Reload world") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                reloadWorld();
+            }
+        });
+        reloadWorld.setMnemonic('R');
+        reloadWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
         JMenuItem closeWorld = filemenu.add(new WorldAction("Close world") {
             @Override
             public void actionPerformed(ActionEvent e) {

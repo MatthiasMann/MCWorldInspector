@@ -19,7 +19,17 @@ public final class FileHelpers {
 
     private FileHelpers() {
     }
-    
+
+    public static File findFileThroughParents(File folder, String name, int maxLevels) {
+        while(folder != null && maxLevels-- >= 0) {
+            File file = new File(folder, name);
+            if(file.exists())
+                return file;
+            folder = folder.getParentFile();
+        }
+        return null;
+    }
+
     public static ByteBuffer loadFile(File file, int maxSize) throws IOException {
         try(RandomAccessFile raf = new RandomAccessFile(file, "r")) {
             final long length = raf.length();
