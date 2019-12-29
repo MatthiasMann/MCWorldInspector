@@ -16,7 +16,7 @@ import javax.swing.SwingUtilities;
  * @author matthias
  */
 public class HighlightListPanel extends JPanel {
-    private final JList<WorldRenderer.HighlightEntry> list = new JList<>();
+    private final JList<HighlightEntry> list = new JList<>();
     private WorldRenderer renderer;
 
     @SuppressWarnings("OverridableMethodCallInConstructor")
@@ -25,7 +25,7 @@ public class HighlightListPanel extends JPanel {
 
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.addListSelectionListener(e -> {
-            WorldRenderer.HighlightEntry value = list.getSelectedValue();
+            HighlightEntry value = list.getSelectedValue();
             if(renderer != null && value != null)
                 renderer.scrollTo(value);
         });
@@ -58,7 +58,7 @@ public class HighlightListPanel extends JPanel {
     
     private void handleClick(int clickCount) {
         if(clickCount == 2 && renderer != null) {
-            WorldRenderer.HighlightEntry value = list.getSelectedValue();
+            HighlightEntry value = list.getSelectedValue();
             final WorldRenderer.HighlightSelector highlightSelector = renderer.getHighlightSelector();
             if(value != null && highlightSelector != null) {
                 renderer.flash(value);
@@ -74,7 +74,7 @@ public class HighlightListPanel extends JPanel {
     public void selectFromRenderer(Point p, int clickCount) {
         if(renderer == null)
             return;
-        final WorldRenderer.HighlightEntry selected = list.getSelectedValue();
+        final HighlightEntry selected = list.getSelectedValue();
         if(selected != null && selected.contains(p))
             handleClick(clickCount);
         else {

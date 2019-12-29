@@ -158,19 +158,18 @@ public class WorldRenderer extends JComponent {
         final Rectangle clipBounds = g.getClipBounds();
         g.setColor(Color.BLACK);
         g.fillRect(clipBounds.x, clipBounds.y, clipBounds.width, clipBounds.height);
+        g.translate(-min_x*16, -min_z*16);
 
         images.entrySet().forEach(i -> {
             final XZPosition p = i.getKey();
-            g.drawImage(i.getValue(), (p.x - min_x) * 16, (p.z - min_z) * 16, this);
+            g.drawImage(i.getValue(), p.x * 16, p.z * 16, this);
         });
         g.setColor(HIGHLIGHT_COLORS[highlight_index]);
-        highlights.forEach((h) -> {
-            g.drawRect((h.getX() - min_x) * 16, (h.getZ() - min_z) * 16, 16, 16);
-        });
+        highlights.forEach(h -> h.paint(g));
         if(flash != null) {
             if(flashMode != FlashMode.OFF) {
                 g.setColor(Color.PINK);
-                g.fillRect((flash.getX() - min_x) * 16, (flash.getZ() - min_z) * 16, 16, 16);
+                flash.paint(g);
             }
             switch(flashMode) {
                 case OFF: flashMode = FlashMode.ON; break;
@@ -261,35 +260,8 @@ public class WorldRenderer extends JComponent {
             return matched.orElse(0);
         });
     }
-    
-    public static class HighlightEntry {
-        public final Chunk chunk;
 
-        public HighlightEntry(Chunk chunk) {
-            this.chunk = chunk;
-        }
-
-        public int getX() {
-            return chunk.getGlobalX();
-        }
-
-        public int getZ() {
-            return chunk.getGlobalZ();
-        }
-
-        public boolean contains(Point p) {
-            return getX() == (p.x >> 4) && getZ() == (p.y >> 4);
-        }
-
-        @Override
-        public String toString() {
-            final int x = getX() << 4;
-            final int z = getZ() << 4;
-            return "Chunk <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
-        }
-    }
-
-    public static interface HighlightSelector extends Function<World, Stream<HighlightEntry>> {
+    public static interface HighlightSelector extends Function<World, Stream<? extends HighlightEntry>> {
         default public void showDetailsFor(Component parent, HighlightEntry entry) {}
     }
 }

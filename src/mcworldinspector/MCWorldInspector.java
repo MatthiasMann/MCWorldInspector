@@ -54,6 +54,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final HighlightListPanel highlightListPanel = new HighlightListPanel();
     private final StatusBar statusBar = new StatusBar();
     private final JTextField statusBarCursorPos = new JTextField();
+    private final JTextField statusBarBiome = new JTextField();
+    private final JTextField statusBarBlockInfo = new JTextField();
     private World world;
     private WorldRenderer renderer;
 
@@ -130,6 +132,18 @@ public class MCWorldInspector extends javax.swing.JFrame {
             public void mouseMoved(MouseEvent e) {
                 final Point p = renderer.mouse2mc(e.getPoint());
                 statusBarCursorPos.setText("X="+p.x+" Y="+p.y);
+                final Chunk chunk = world.getChunk(p.x >> 4, p.y >> 4);
+                if(chunk != null) {
+                    final Biome biome = chunk.getBiome(p.x & 15, p.y & 15, world.getBiomeRegistry());
+                    statusBarBiome.setText(biome != null ? biome.name : "");
+                    NBTTagCompound topBlock = chunk.getTopBlock(p.x & 15, p.y & 15);
+                    statusBarBlockInfo.setText((topBlock != null) ?
+                        SubChunk.BlockInfo.blockToString(
+                                topBlock, new StringBuilder()).toString() : "");
+                } else {
+                    statusBarBiome.setText("");
+                    statusBarBlockInfo.setText("");
+                }
             }
 
             @Override
@@ -141,6 +155,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
             @Override
             public void mouseExited(MouseEvent e) {
                 statusBarCursorPos.setText("");
+                statusBarBiome.setText("");
+                statusBarBlockInfo.setText("");
             }
         };
         renderer.addMouseMotionListener(ma);
@@ -282,6 +298,14 @@ public class MCWorldInspector extends javax.swing.JFrame {
         statusBarCursorPos.setEditable(false);
         statusBarCursorPos.setColumns(16);
         statusBar.addElement(new StatusBar.Element(StatusBar.Alignment.RIGHT, statusBarCursorPos));
+        statusBarBiome.setEditable(false);
+        statusBarBiome.setColumns(16);
+        statusBarBiome.setToolTipText("Biome");
+        statusBar.addElement(new StatusBar.Element(StatusBar.Alignment.RIGHT, statusBarBiome));
+        statusBarBlockInfo.setEditable(false);
+        statusBarBlockInfo.setColumns(50);
+        statusBarBlockInfo.setToolTipText("Top block");
+        statusBar.addElement(new StatusBar.Element(StatusBar.Alignment.LEFT, statusBarBlockInfo));
 
         JPanel panel = new JPanel(null);
         GroupLayout layout = new GroupLayout(panel);

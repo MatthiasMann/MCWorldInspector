@@ -73,6 +73,17 @@ public class Chunk extends XZPosition {
     public SubChunk getSubChunk(int y) {
         return subchunks[y];
     }
+
+    public NBTIntArray getBiomes() {
+        return level.get("Biomes", NBTIntArray.class);
+    }
+    
+    public Biome getBiome(int x, int z, Map<Integer, Biome> biomeRegistry) {
+        final NBTIntArray biomes = getBiomes();
+        if(biomes != null && biomes.size() == 256)
+            return biomeRegistry.get(biomes.getInt(z*16 + x));
+        return null;
+    }
     
     public NBTTagCompound getTopBlock(int x, int z) {
         if(heightmap != null) {
@@ -167,7 +178,7 @@ public class Chunk extends XZPosition {
     }
     
     public Stream<Biome> biomes(Map<Integer, Biome> biomeRegistry) {
-        final NBTIntArray biomes = level.get("Biomes", NBTIntArray.class);
+        final NBTIntArray biomes = getBiomes();
         if(biomes == null)
             return Stream.empty();
         return biomes.stream().mapToObj(biomeRegistry::get).filter(Objects::nonNull);

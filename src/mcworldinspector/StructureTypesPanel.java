@@ -55,14 +55,14 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
         }
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.structureTypes().anyMatch(structureTypes::contains))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
-        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+        public void showDetailsFor(Component parent, HighlightEntry entry) {
             NBTTagList<NBTTagCompound> result = structureTypes.stream()
                     .flatMap(entry.chunk::getStructures)
                     .collect(NBTTagList.toTagList(NBTTagCompound.class));

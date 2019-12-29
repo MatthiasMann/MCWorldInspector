@@ -55,14 +55,14 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
         }
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.entityTypes().anyMatch(entities::contains))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
-        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+        public void showDetailsFor(Component parent, HighlightEntry entry) {
             NBTTagList<NBTTagCompound> result = entities.stream()
                     .flatMap(entry.chunk::getEntities)
                     .filter(nbt -> !nbt.isEmpty())

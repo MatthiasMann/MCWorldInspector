@@ -1,11 +1,15 @@
 package mcworldinspector;
 
 import java.awt.Component;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.swing.SwingUtilities;
 import mcworldinspector.nbt.NBTDoubleArray;
+import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
@@ -36,6 +40,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         btnSpawnChunk = new javax.swing.JButton();
         btnSearchChests = new javax.swing.JButton();
         btnLootChests = new javax.swing.JButton();
+        btnTulpis = new javax.swing.JButton();
 
         btnSlimeChunks.setText("Highlight slime chunks");
         btnSlimeChunks.addActionListener(new java.awt.event.ActionListener() {
@@ -72,6 +77,13 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             }
         });
 
+        btnTulpis.setText("Tulpis in Plains");
+        btnTulpis.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnTulpisActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -83,7 +95,8 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                     .addComponent(btnPlayerPos, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnSpawnChunk, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnSearchChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(btnLootChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(btnLootChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(btnTulpis, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -99,7 +112,9 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 .addComponent(btnSearchChests)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnLootChests)
-                .addContainerGap(135, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnTulpis)
+                .addContainerGap(102, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -109,7 +124,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             r.highlight(world -> {
                 long seed = world.getRandomSeed();
                 return world.chunks().filter(c -> c.isSlimeChunk(seed))
-                        .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                        .map(chunk -> new HighlightEntry(chunk));
             });
     }//GEN-LAST:event_btnSlimeChunksActionPerformed
 
@@ -122,7 +137,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 if(pos != null) {
                     Chunk chunk = world.getChunk(pos);
                     if(chunk != null)
-                        return Stream.of(new WorldRenderer.HighlightEntry(chunk));
+                        return Stream.of(new HighlightEntry(chunk));
                 }
                 return Stream.empty();
             });
@@ -138,7 +153,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 if(spawnX != null && spawnZ != null) {
                     Chunk chunk = world.getChunk(spawnX >> 4, spawnZ >> 4);
                     if(chunk != null)
-                        return Stream.of(new WorldRenderer.HighlightEntry(chunk));
+                        return Stream.of(new HighlightEntry(chunk));
                 }
                 return Stream.empty();
             });
@@ -172,6 +187,40 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 "Loot chests details for "));
     }//GEN-LAST:event_btnLootChestsActionPerformed
 
+    private void btnTulpisActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTulpisActionPerformed
+        final WorldRenderer r = renderer.get();
+        if(r == null)
+            return;
+        final Noise noise = new Noise(new Random(2345));
+        r.highlight(world -> {
+            final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
+            Optional<Biome> optPlains = biomeRegistry.values().stream()
+                    .filter(b -> "minecraft:plains".equals(b.namespacedID)).findAny();
+            if(optPlains.isPresent()) {
+                int plainsID = optPlains.get().numericID;
+                return world.getChunks().parallelStream().flatMap(chunk -> {
+                    final int chunkX = chunk.getGlobalX() << 4;
+                    final int chunkZ = chunk.getGlobalZ() << 4;
+                    final NBTIntArray biomes = chunk.getBiomes();
+                    final HighlightEntry.OverlayGen og = new HighlightEntry.OverlayGen();
+                    for(int idx=0 ; idx<256 ; ++idx) {
+                        if(biomes.getInt(idx) == plainsID) {
+                            final int x = idx & 15;
+                            final int z = idx >> 4;
+                            final double value = noise.nose2d(
+                                    (chunkX + x) / 200.0,
+                                    (chunkZ + z) / 200.0);
+                            if(value < -0.8)
+                                og.setRGB(x, z, 0xFFFF0000);
+                        }
+                    }
+                    return og.createHighlightEntry(chunk);
+                });
+            }
+            return Stream.empty();
+        });
+    }//GEN-LAST:event_btnTulpisActionPerformed
+
     private static class TileEntityHighlighter implements WorldRenderer.HighlightSelector {
         private final Predicate<NBTTagCompound> filter;
         private final String title;
@@ -182,14 +231,14 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         }
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.chunks().filter(chunk ->
                     chunk.tileEntities().anyMatch(filter))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
-        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+        public void showDetailsFor(Component parent, HighlightEntry entry) {
             NBTTagList<NBTTagCompound> result = entry.chunk.tileEntities()
                     .filter(filter).collect(NBTTagList.toTagList(NBTTagCompound.class));
             NBTTreeModel.displayNBT(parent, result, title + entry);
@@ -202,5 +251,6 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
     private javax.swing.JButton btnSearchChests;
     private javax.swing.JButton btnSlimeChunks;
     private javax.swing.JButton btnSpawnChunk;
+    private javax.swing.JButton btnTulpis;
     // End of variables declaration//GEN-END:variables
 }

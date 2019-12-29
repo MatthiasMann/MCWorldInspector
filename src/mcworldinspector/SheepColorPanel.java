@@ -69,15 +69,15 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
         private static final String MINECRAFT_SHEEP = "minecraft:sheep";
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.getEntities(MINECRAFT_SHEEP)
                             .anyMatch(this::filterColor))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
-        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+        public void showDetailsFor(Component parent, HighlightEntry entry) {
             NBTTagList<NBTTagCompound> result = colors.stream()
                     .flatMap(chunk -> entry.chunk.getEntities(MINECRAFT_SHEEP))
                     .filter(this::filterColor)

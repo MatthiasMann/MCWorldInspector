@@ -65,14 +65,14 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
         }
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.getBlockTypes().anyMatch(blockTypes::contains))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
-        public void showDetailsFor(Component parent, WorldRenderer.HighlightEntry entry) {
+        public void showDetailsFor(Component parent, HighlightEntry entry) {
             final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
             blockTypes.stream().flatMap(entry.chunk::findBlocks).forEach(b -> {
                 blocks.computeIfAbsent(b.y, ArrayList::new).add(b);

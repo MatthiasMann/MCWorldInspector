@@ -99,7 +99,12 @@ public class SubChunk {
             sb.append('<').append(x)
                     .append(", ").append(y)
                     .append(", ").append(z)
-                    .append("> = ").append(block.getString("Name"));
+                    .append("> = ");
+            return blockToString(block, sb).toString();
+        }
+
+        public static StringBuilder blockToString(NBTTagCompound block, StringBuilder sb) {
+            sb.append(block.getString("Name"));
             final NBTTagCompound properties = block.getCompound("Properties");
             if(!properties.isEmpty()) {
                 String sep = "{";
@@ -109,7 +114,7 @@ public class SubChunk {
                 }
                 sb.append('}');
             }
-            return sb.toString();
+            return sb;
         }
     }
 

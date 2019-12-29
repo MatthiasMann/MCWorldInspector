@@ -28,27 +28,31 @@ public class StatusBar extends JPanel {
         if(element.alignment == Alignment.LEFT)
             firstRightAligned++;
 
-        final GroupLayout.ParallelGroup vertical = layout.createParallelGroup();
-        final GroupLayout.SequentialGroup horizontal = layout.createSequentialGroup().addContainerGap();
+        final GroupLayout.ParallelGroup vertical = layout.createParallelGroup(
+                GroupLayout.Alignment.LEADING);
+        final GroupLayout.SequentialGroup horizontal = layout.createSequentialGroup();
         elements.forEach(new Consumer<Element>() {
             Alignment prev = Alignment.LEFT;
             boolean first = true;
             @Override
             public void accept(Element e) {
                 if(e.alignment == Alignment.RIGHT && prev == Alignment.LEFT)
-                    horizontal.addGap(0, 0, Short.MAX_VALUE);
+                    horizontal.addPreferredGap(
+                            LayoutStyle.ComponentPlacement.UNRELATED,
+                            GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE);
                 else {
                     assert(e.alignment == prev);
                     if(!first)
-                        horizontal.addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED);
+                        horizontal.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED);
                 }
-                horizontal.addComponent(e.widget);
+                horizontal.addComponent(e.widget, GroupLayout.PREFERRED_SIZE,
+                        GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
                 vertical.addComponent(e.widget);
                 prev = e.alignment;
                 first = false;
             }
         });
-        layout.setHorizontalGroup(horizontal.addContainerGap());
+        layout.setHorizontalGroup(horizontal);
         layout.setVerticalGroup(vertical);
     }
 

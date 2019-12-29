@@ -53,11 +53,11 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
         }
 
         @Override
-        public Stream<WorldRenderer.HighlightEntry> apply(World world) {
+        public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.biomes(biomeRegistry)
                             .anyMatch(biomes::contains))
-                    .map(chunk -> new WorldRenderer.HighlightEntry(chunk));
+                    .map(chunk -> new HighlightEntry(chunk));
         }
     }
 }
