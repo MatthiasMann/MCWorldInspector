@@ -81,14 +81,36 @@ public class WorldRenderer extends JComponent {
             }
         });
     }
+
+    private Point getViewportCenter() {
+        Container parent = getParent();
+        if(parent instanceof JViewport) {
+            Point pos = ((JViewport)parent).getViewPosition();
+            pos.translate(parent.getWidth()/2 , parent.getHeight() / 2);
+            return pos;
+        }
+        return new Point(getWidth()/2, getHeight()/2);
+    }
     
+    private static long getRegionDistance(XZPosition r, Point center) {
+        long x = r.x * 16 + 16 * 16 - center.x;
+        long z = r.z * 16 + 16 * 16 - center.y;
+        return x*x + z*z;
+    }
+
     public void startChunkRendering(Function<Chunk, int[]> chunkRenderer) {
+        final Point center = getViewportCenter();
+        center.translate(min_x * 16, min_z * 16);
         final int generation = asyncRenderingGeneration.incrementAndGet();
         executor.submit(() -> {
             HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>();
             world.chunks().forEach(chunk -> regions.computeIfAbsent(
                     chunk.getRegionStart(), pos -> new ArrayList<>()).add(chunk));
-            regions.entrySet().forEach(e -> executor.submit(() -> {
+            regions.entrySet().stream().sorted((a,b) -> {
+                return Long.compare(
+                        getRegionDistance(a.getKey(), center),
+                        getRegionDistance(b.getKey(), center));
+            }).forEachOrdered(e -> executor.submit(() -> {
                 if(generation != asyncRenderingGeneration.get())
                     return;
                 BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
