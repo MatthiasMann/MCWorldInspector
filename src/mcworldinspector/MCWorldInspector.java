@@ -7,12 +7,16 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -26,6 +30,7 @@ import javax.swing.JTextField;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileView;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.FileError;
@@ -39,13 +44,6 @@ import mcworldinspector.utils.StatusBar;
  */
 public class MCWorldInspector extends javax.swing.JFrame {
 
-    private static final AbstractFileFilter MCA_FILE_FILTER = new AbstractFileFilter("Minecraft region files") {
-        @Override
-        public boolean accept(File pathname) {
-            return pathname.getName().endsWith(".mca") || pathname.isDirectory();
-        }
-    };
-
     private final Preferences preferences;
     private final JScrollPane mainarea = new JScrollPane();
     private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
@@ -56,6 +54,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final JTextField statusBarCursorPos = new JTextField();
     private final JTextField statusBarBiome = new JTextField();
     private final JTextField statusBarBlockInfo = new JTextField();
+    private File worldFolder;
     private World world;
     private WorldRenderer renderer;
 
@@ -84,13 +83,32 @@ public class MCWorldInspector extends javax.swing.JFrame {
     }
 
     private void openWorld() {
-        JFileChooser jfc = new JFileChooser(preferences.get("recent_folder", "."));
-        jfc.addChoosableFileFilter(MCA_FILE_FILTER);
-        jfc.setFileFilter(MCA_FILE_FILTER);
+        final WorldFolderFileView fileView = new WorldFolderFileView();
+        final AbstractFileFilter fileFilter = new AbstractFileFilter("Minecraft world folder") {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.isDirectory();
+            }
+        };
+        JFileChooser jfc = new JFileChooser(preferences.get("recent_folder", ".")) {
+            @Override
+            public void approveSelection() {
+                final File selectedFile = getSelectedFile();
+                if(selectedFile != null && selectedFile.isDirectory()) {
+                    if(fileView.isRegionFolder(selectedFile))
+                        super.approveSelection();
+                    setCurrentDirectory(selectedFile);
+                }
+            }
+        };
+        jfc.setFileView(fileView);
+        jfc.addChoosableFileFilter(fileFilter);
+        jfc.setFileFilter(fileFilter);
+        jfc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         if(jfc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             preferences.put("recent_folder", jfc.getCurrentDirectory().getAbsolutePath());
-            File folder = jfc.getSelectedFile().getParentFile();
-            loadWorld(folder, this::scrollToPlayerorSpawn);
+            worldFolder = jfc.getSelectedFile();
+            loadWorld(this::scrollToPlayerorSpawn);
         }
     }
 
@@ -106,12 +124,14 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     private void reloadWorld() {
         Point scrollPos = mainarea.getViewport().getViewPosition();
-        loadWorld(new File(preferences.get("recent_folder", ".")), world != null
+        loadWorld(world != null 
                 ? () -> mainarea.getViewport().setViewPosition(scrollPos)
                 : this::scrollToPlayerorSpawn);
     }
 
-    private void loadWorld(File folder, Runnable postLoadCB) {
+    private void loadWorld(Runnable postLoadCB) {
+        if(worldFolder == null)
+            return;
         // free up memory
         closeWorld();
         final ProgressBarDialog dialog = new ProgressBarDialog(this, true);
@@ -130,9 +150,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 case "levelName": dialog.setTitle("Loading world " + loading.getLevelName()); break;
             }
         });
-        loading.start(folder);
-        dialog.setTitle("Loading world");
-        dialog.setVisible(true);
+        if(loading.start(worldFolder)) {
+            dialog.setTitle("Loading world");
+            dialog.setVisible(true);
+        }
     }
 
     private void finishedLoadingWorld(World world) {
@@ -381,5 +402,51 @@ public class MCWorldInspector extends javax.swing.JFrame {
         SwingUtilities.invokeLater(() -> {
             new MCWorldInspector(args).run();
         });
+    }
+
+    static class WorldFolderFileView extends FileView {
+        private static final URL REGION_FOLDER_IMAGE = WorldFolderFileView.class.getResource("region_folder.png");
+
+        private final WeakHashMap<File, Boolean> specialCache = new WeakHashMap<>();
+
+        @Override
+        public Boolean isTraversable(File f) {
+            if(isRegionFolder(f))
+                return false;
+            return null;
+        }
+
+        @Override
+        public Icon getIcon(File f) {
+            if(REGION_FOLDER_IMAGE != null && isRegionFolder(f))
+                return new ImageIcon(REGION_FOLDER_IMAGE);
+            return null;
+        }
+
+        @Override
+        public String getTypeDescription(File f) {
+            if(isRegionFolder(f))
+                return "Minecraft world folder";
+            return null;
+        }
+
+        boolean isRegionFolder(File folder) {
+            if(folder == null)
+                return false;
+            Boolean cached = specialCache.get(folder);
+            if(cached == null) {
+                cached = Boolean.FALSE;
+                if(folder.isDirectory() && !folder.getName().equals("poi")) {
+                    try {
+                        String[] files = folder.list(
+                                (dir, name) -> name.endsWith(".mca"));
+                        if(files != null && files.length > 0)
+                            cached = Boolean.TRUE;
+                    } catch(SecurityException ex) {}
+                }
+                specialCache.put(folder, cached);
+            }
+            return cached;
+        }
     }
 }
