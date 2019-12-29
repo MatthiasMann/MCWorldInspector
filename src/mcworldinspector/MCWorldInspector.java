@@ -256,7 +256,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     private void updateStatusBarMousePos(SubChunk.BlockInfo block) {
         if(block != null)
-            statusBarCursorPos.setText("<"+block.x+", "+block.y+", " + block.y +'>');
+            statusBarCursorPos.setText("<"+block.x+", "+block.y+", " + block.z +'>');
         else
             statusBarCursorPos.setText("<"+lastMousePos.x+", ?, "+lastMousePos.y + '>');
     }
