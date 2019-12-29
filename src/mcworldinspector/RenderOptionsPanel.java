@@ -16,15 +16,15 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
     public RenderOptionsPanel(Runnable cb) {
         initComponents();
 
-        ChangeListener l = e -> {
-            sliderLayer.setEnabled(btnUnderground.isSelected());
-            cb.run();
-        };
+        ChangeListener l = e -> cb.run();
         btnSurface.addChangeListener(l);
         btnUnderground.addChangeListener(l);
         sliderLayer.addChangeListener(e -> {
             updateLabel();
-            cb.run();
+            if(btnUnderground.isSelected())
+                cb.run();
+            else
+                btnUnderground.setSelected(true);
         });
 
         updateLabel();
@@ -66,7 +66,6 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
         sliderLayer.setMaximum(255);
         sliderLayer.setMinimum(1);
         sliderLayer.setValue(64);
-        sliderLayer.setEnabled(false);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);

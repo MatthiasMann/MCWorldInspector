@@ -75,7 +75,6 @@
         <Property name="maximum" type="int" value="255"/>
         <Property name="minimum" type="int" value="1"/>
         <Property name="value" type="int" value="64"/>
-        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
     </Component>
   </SubComponents>
