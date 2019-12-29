@@ -84,14 +84,37 @@ public class Chunk extends XZPosition {
             return biomeRegistry.get(biomes.getInt(z*16 + x));
         return null;
     }
-    
-    public NBTTagCompound getTopBlock(int x, int z) {
+
+    public static @FunctionalInterface interface WrapBlock<R> {
+        public R apply(int y, NBTTagCompound block);
+
+        public static NBTTagCompound noWrap(int y, NBTTagCompound block) {
+            return block;
+        }
+    }
+
+    private SubChunk.BlockInfo makeBlockInfo(int localX, int y, int localZ, NBTTagCompound block) {
+        return new SubChunk.BlockInfo((x << 4) + localX, y, (z << 4) + localZ, block);
+    }
+
+    public<R> R getTopBlock(int x, int z, WrapBlock<R> wrap) {
         if(heightmap != null) {
             int top = heightmap.getBits((z*16+x)*9, 9) - 1;
-            if(top >= 0 && top < 256 && subchunks[top >> 4] != null)
-                return subchunks[top >> 4].getBlock(x, top & 15, z);
+            if(top >= 0 && top < 256 && subchunks[top >> 4] != null) {
+                NBTTagCompound block = subchunks[top >> 4].getBlock(x, top & 15, z);
+                if(block != null)
+                    return wrap.apply(top, block);
+            }
         }
         return null;
+    }
+
+    public NBTTagCompound getTopBlock(int x, int z) {
+        return getTopBlock(x, z, WrapBlock::noWrap);
+    }
+
+    public SubChunk.BlockInfo getTopBlockInfo(int x, int z) {
+        return getTopBlock(x, z, (y,block) -> makeBlockInfo(x, y, z, block));
     }
 
     public boolean isAir(int x, int y, int z) {
@@ -99,18 +122,31 @@ public class Chunk extends XZPosition {
         return (sc == null) || sc.isAir(x, y & 15, z);
     }
 
-    public NBTTagCompound getTopBlockBelowLayer(int x, int y, int z) {
+    public<R> R getTopBlockBelowLayer(int x, int y, int z, WrapBlock<R> wrap) {
         for(;;) {
             final SubChunk sc = subchunks[y >> 4];
             if(sc != null) {
                 final NBTTagCompound block = sc.getTopBlockBelowLayer(x, y & 15, z);
                 if(block != null)
-                    return block;
+                    return wrap.apply(y, block);
             }
             if(y <= 15)
                 return null;
-            y = (y & ~15) - 16;
+            y = (y & ~15) - 1;
         }
+    }
+
+    public<R> R getCaveFloorBlock(int x, int layer, int z, WrapBlock<R> wrap) {
+         return layer > 0 && isAir(x, layer, z)
+                 ? getTopBlockBelowLayer(x, layer - 1, z, wrap) : null;
+    }
+
+    public NBTTagCompound getCaveFloorBlock(int x, int layer, int z) {
+        return getCaveFloorBlock(x, layer, z, WrapBlock::noWrap);
+    }
+
+    public SubChunk.BlockInfo getCaveFloorBlockInfo(int x, int layer, int z) {
+        return getCaveFloorBlock(x, layer, z, (y,block) -> makeBlockInfo(x, y, z, block));
     }
 
     public Stream<SubChunk.BlockInfo> findBlocks(String blockType) {

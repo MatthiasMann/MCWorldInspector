@@ -249,12 +249,10 @@ public class WorldRenderer extends JComponent {
         int[] data = new int[256];
         for(int z=0 ; z<16 ; z++) {
             for(int x=0 ; x<16 ; x++) {
-                if(chunk.isAir(x, y, z)) {
-                    NBTTagCompound block = chunk.getTopBlockBelowLayer(x, y - 1, z);
-                    if(block != null) {
-                        String name = block.getString("Name");
-                        data[x+z*16] = getBlockColorIndex(name);
-                    }
+                NBTTagCompound block = chunk.getCaveFloorBlock(x, y, z);
+                if(block != null) {
+                    String name = block.getString("Name");
+                    data[x+z*16] = getBlockColorIndex(name);
                 }
             }
         }

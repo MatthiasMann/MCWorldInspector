@@ -144,32 +144,59 @@ public class MCWorldInspector extends javax.swing.JFrame {
         highlightListPanel.setRenderer(renderer);
         filteredPanels.values().forEach(p -> p.setWorld(world));
         MouseAdapter ma = new MouseAdapter() {
+            private int startMouseX;
+            private int startMouseY;
+            private Point startScrollPos;
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                JViewport vp = getViewport();
+                if(vp != null) {
+                    Point p = new Point(startScrollPos);
+                    p.x += startMouseX - e.getXOnScreen();
+                    p.y += startMouseY - e.getYOnScreen();
+                    vp.setViewPosition(p);
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                startMouseX = e.getXOnScreen();
+                startMouseY = e.getYOnScreen();
+                JViewport vp = getViewport();
+                if(vp != null)
+                    startScrollPos = vp.getViewPosition();
+            }
+
+            private JViewport getViewport() {
+                return mainarea.getViewport();
+            }
+
             @Override
             public void mouseMoved(MouseEvent e) {
-                final Point p = renderer.mouse2mc(e.getPoint());
-                statusBarCursorPos.setText("X="+p.x+" Y="+p.y);
-                final Chunk chunk = world.getChunk(p.x >> 4, p.y >> 4);
+                lastMousePos = renderer.mouse2mc(e.getPoint());
+                final Chunk chunk = getMouseChunk();
                 if(chunk != null) {
-                    final Biome biome = chunk.getBiome(p.x & 15, p.y & 15, world.getBiomeRegistry());
+                    final Biome biome = chunk.getBiome(lastMousePos.x & 15,
+                            lastMousePos.y & 15, world.getBiomeRegistry());
                     statusBarBiome.setText(biome != null ? biome.name : "");
-                    NBTTagCompound topBlock = chunk.getTopBlock(p.x & 15, p.y & 15);
-                    statusBarBlockInfo.setText((topBlock != null) ?
-                        SubChunk.BlockInfo.blockToString(
-                                topBlock, new StringBuilder()).toString() : "");
+                    updateStatusBarBlockInfo(chunk);
                 } else {
                     statusBarBiome.setText("");
                     statusBarBlockInfo.setText("");
+                    updateStatusBarMousePos(null);
                 }
             }
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                final Point p = renderer.mouse2mc(e.getPoint());
-                highlightListPanel.selectFromRenderer(p, e.getClickCount());
+                lastMousePos = renderer.mouse2mc(e.getPoint());
+                highlightListPanel.selectFromRenderer(lastMousePos, e.getClickCount());
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
+                lastMousePos = null;
                 statusBarCursorPos.setText("");
                 statusBarBiome.setText("");
                 statusBarBlockInfo.setText("");
@@ -178,6 +205,39 @@ public class MCWorldInspector extends javax.swing.JFrame {
         renderer.addMouseMotionListener(ma);
         renderer.addMouseListener(ma);
         firePropertyChange("world", oldWorld, world);
+    }
+
+    private Point lastMousePos;
+
+    private Chunk getMouseChunk() {
+        return world.getChunk(lastMousePos.x >> 4, lastMousePos.y >> 4);
+    }
+
+    private void updateStatusBarBlockInfo() {
+        final Chunk chunk = getMouseChunk();
+        if(chunk != null)
+            updateStatusBarBlockInfo(chunk);
+        else
+            statusBarBlockInfo.setText("");
+    }
+
+    private void updateStatusBarBlockInfo(Chunk chunk) {
+        final boolean isSurface = renderOptionsPanel.getMode() == RenderOptionsPanel.Mode.SURFACE;
+        final int x = lastMousePos.x & 15;
+        final int z = lastMousePos.y & 15;
+        SubChunk.BlockInfo topBlock = isSurface ? chunk.getTopBlockInfo(x, z)
+                : chunk.getCaveFloorBlockInfo(x, renderOptionsPanel.getLayer(), z);
+        statusBarBlockInfo.setText((topBlock != null) ?
+            SubChunk.BlockInfo.blockToString(
+                    topBlock.block, new StringBuilder()).toString() : "");
+        updateStatusBarMousePos(topBlock);
+    }
+
+    private void updateStatusBarMousePos(SubChunk.BlockInfo block) {
+        if(block != null)
+            statusBarCursorPos.setText("<"+block.x+", "+block.y+", " + block.y +'>');
+        else
+            statusBarCursorPos.setText("<"+lastMousePos.x+", ?, "+lastMousePos.y + '>');
     }
 
     private void renderChunks() {
@@ -191,6 +251,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
                     renderer.startChunkRendering(c -> WorldRenderer.renderChunkLayer(c, layer));
                 }
             }
+            if(lastMousePos != null)
+                updateStatusBarBlockInfo();
         }
     }
 
@@ -273,38 +335,6 @@ public class MCWorldInspector extends javax.swing.JFrame {
     
     private void run() {
         setJMenuBar(createMenuBar());
-
-        MouseAdapter mouseAdapter = new MouseAdapter() {
-            private int startMouseX;
-            private int startMouseY;
-            private Point startScrollPos;
-
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                JViewport vp = getViewport();
-                if(vp != null) {
-                    Point p = new Point(startScrollPos);
-                    p.x += startMouseX - e.getX();
-                    p.y += startMouseY - e.getY();
-                    vp.setViewPosition(p);
-                }
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                startMouseX = e.getX();
-                startMouseY = e.getY();
-                JViewport vp = getViewport();
-                if(vp != null)
-                    startScrollPos = vp.getViewPosition();
-            }
-            
-            private JViewport getViewport() {
-                return mainarea.getViewport();
-            }
-        };
-        mainarea.addMouseListener(mouseAdapter);
-        mainarea.addMouseMotionListener(mouseAdapter);
 
         JTabbedPane tabbed = new JTabbedPane();
         filteredPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue()));
