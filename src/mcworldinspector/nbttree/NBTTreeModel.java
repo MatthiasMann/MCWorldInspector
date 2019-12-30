@@ -3,15 +3,29 @@ package mcworldinspector.nbttree;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -30,6 +44,8 @@ import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTShortArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
+import org.json.JSONException;
+import org.json.JSONWriter;
 
 /**
  *
@@ -50,10 +66,84 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         tree.setDefaultRenderer(TextWithIcon.class, new TextWithIconRenderer());
         if(model.getChildCount(model.getRoot()) == 1)
             tree.getTree().expandRow(0);
+        addContextMenu(tree);
         JScrollPane pane = new JScrollPane(tree);
         pane.setMinimumSize(new Dimension(1000, 600));
         pane.setPreferredSize(new Dimension(1000, 600));
         JOptionPane.showMessageDialog(parent, pane, title, JOptionPane.PLAIN_MESSAGE);
+    }
+
+    public static void addContextMenu(JTreeTable treeTable) {
+        assert(treeTable.getModel() instanceof NBTTreeModel);
+        treeTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                checkPopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                checkPopup(e);
+            }
+            
+            public void checkPopup(MouseEvent e) {
+                if(!e.isPopupTrigger())
+                    return;
+                final Point point = e.getPoint();
+                final int row = treeTable.rowAtPoint(point);
+                if(row < 0)
+                    return;
+                final int column = treeTable.columnAtPoint(point);
+                treeTable.setRowSelectionInterval(row, row);
+                treeTable.setColumnSelectionInterval(column, column);
+                final Node node = (Node)treeTable.getTree().getLastSelectedPathComponent();
+                if(node == null)
+                    return;
+                final boolean hasValue = !node.value.text.isEmpty();
+                JPopupMenu popupMenu = new JPopupMenu();
+                if(column == 1 && hasValue)
+                    popupMenu.add(new AbstractAction("Copy value") {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            copyToClipboard(node.value.text);
+                        }
+                    });
+                if(hasValue)
+                    popupMenu.add(new CopyAsJSONAction("Copy row as JSON", node, false));
+                if(!node.children.isEmpty())
+                    popupMenu.add(new CopyAsJSONAction("Copy tree as JSON", node, true));
+                if(popupMenu.getComponentCount() > 0)
+                    popupMenu.show(e.getComponent(), e.getX(), e.getY());
+            }
+        });
+    }
+
+    private static void copyToClipboard(String str) {
+        Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
+        cb.setContents(new StringSelection(str), null);
+    }
+
+    static class CopyAsJSONAction extends AbstractAction {
+        private final Node node;
+        private final boolean withChildren;
+
+        public CopyAsJSONAction(String name, Node node, boolean withChildren) {
+            super(name);
+            this.node = node;
+            this.withChildren = withChildren;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            try {
+                StringWriter sw = new StringWriter();
+                node.writeJSON(new JSONWriter(sw), withChildren);
+                copyToClipboard(sw.toString());
+            } catch (JSONException ex) {
+                Logger.getLogger(CopyAsJSONAction.class.getName())
+                        .log(Level.SEVERE, "Unable to create JSON", ex);
+            }
+        }
     }
 
     @Override
@@ -125,7 +215,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                         final Object value = e.getValue();
                         final Node node = new Node(e.getKey(), Node.iconForObject(value));
                         makeChildNodes(e.getKey(), node, value);
-                        parent.children.add(node);
+                        parent.addChild(node);
                     });
         } else if(obj instanceof NBTArray) {
             NBTArray a = (NBTArray)obj;
@@ -133,7 +223,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                 final Object value = a.get(idx);
                 final Node node = new Node(Integer.toString(idx), Node.iconForObject(value));
                 makeNode(node, value);
-                parent.children.add(node);
+                parent.addChild(node);
             }
         } else {
             parent.value = new TextWithIcon(Objects.toString(obj));
@@ -226,7 +316,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     public static class Node {
-        final ArrayList<Node> children = new ArrayList<>();
+        private List<Node> children = Collections.EMPTY_LIST;
         final String label;
         TextWithIcon value;
         Icon icon;
@@ -275,6 +365,25 @@ public class NBTTreeModel extends AbstractTreeTableModel {
 
         static ImageIcon iconForObject(Object obj) {
             return (obj != null) ? ICONS.get(obj.getClass()) : null;
+        }
+
+        public void addChild(Node child) {
+            if(children.isEmpty())
+                children = new ArrayList<>();
+            children.add(child);
+        }
+
+        public void writeJSON(JSONWriter w, boolean withChildren) throws JSONException {
+            w.object()
+                    .key("label").value(label)
+                    .key("value").value(value.text);
+            if(withChildren && !children.isEmpty()) {
+                w.key("children").array();
+                for(Node child : children)
+                    child.writeJSON(w, true);
+                w.endArray();
+            }
+            w.endObject();
         }
     }
     
