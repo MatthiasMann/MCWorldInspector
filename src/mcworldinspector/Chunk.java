@@ -86,15 +86,13 @@ public class Chunk extends XZPosition {
     }
 
     public static @FunctionalInterface interface WrapBlock<R> {
-        public R apply(int y, NBTTagCompound block);
-
-        public static NBTTagCompound noWrap(int y, NBTTagCompound block) {
-            return block;
-        }
+        public R apply(int localXZ, int y, SubChunk sc, int index);
     }
 
-    private SubChunk.BlockInfo makeBlockInfo(int localX, int y, int localZ, NBTTagCompound block) {
-        return new SubChunk.BlockInfo((x << 4) + localX, y, (z << 4) + localZ, block);
+    private WrapBlock<SubChunk.BlockInfo> makeBlockInfo()  {
+        return (xz,y,sc,index) -> new SubChunk.BlockInfo(
+                (x << 4) + (xz & 15), y, (z << 4) + (xz >> 4),
+                sc.getBlockFromPalette(index));
     }
 
     public NBTLongArray getHeightmap() {
@@ -107,38 +105,35 @@ public class Chunk extends XZPosition {
             heights[xx] = heightmap.getBits(bitIdx, 9) - 1;
     }
 
-    public<R> R getTopBlock(int x, int z, WrapBlock<R> wrap) {
+    public<R> R getTopBlock(int xz, WrapBlock<R> wrap) {
         if(heightmap != null) {
-            int top = heightmap.getBits((z*16+x)*9, 9) - 1;
-            if(top >= 0 && top < 256 && subchunks[top >> 4] != null) {
-                NBTTagCompound block = subchunks[top >> 4].getBlock(x, top & 15, z);
-                if(block != null)
-                    return wrap.apply(top, block);
+            final int top = heightmap.getBits(xz*9, 9) - 1;
+            SubChunk sc;
+            if(top >= 0 && top < 256 && (sc = subchunks[top >> 4]) != null) {
+                final int index = sc.getBlockIndex(xz, top);
+                if(index >= 0)
+                    return wrap.apply(xz, top, sc, index);
             }
         }
         return null;
     }
 
-    public NBTTagCompound getTopBlock(int x, int z) {
-        return getTopBlock(x, z, WrapBlock::noWrap);
-    }
-
     public SubChunk.BlockInfo getTopBlockInfo(int x, int z) {
-        return getTopBlock(x, z, (y,block) -> makeBlockInfo(x, y, z, block));
+        return getTopBlock(z*16 + x, makeBlockInfo());
     }
 
-    public boolean isAir(int x, int y, int z) {
+    public boolean isAir(int xz, int y) {
         final SubChunk sc = subchunks[y >> 4];
-        return (sc == null) || sc.isAir(x, y & 15, z);
+        return (sc == null) || sc.isAir(xz, y);
     }
 
-    public<R> R getTopBlockBelowLayer(int x, int y, int z, WrapBlock<R> wrap) {
+    public<R> R getTopBlockBelowLayer(int xz, int y, WrapBlock<R> wrap) {
         for(;;) {
             final SubChunk sc = subchunks[y >> 4];
             if(sc != null) {
-                final NBTTagCompound block = sc.getTopBlockBelowLayer(x, y & 15, z);
-                if(block != null)
-                    return wrap.apply(y, block);
+                final int index = sc.getTopBlockIndexBelowLayer(xz, y & 15);
+                if(index >= 0)
+                    return wrap.apply(xz, y, sc, index);
             }
             if(y <= 15)
                 return null;
@@ -146,17 +141,39 @@ public class Chunk extends XZPosition {
         }
     }
 
-    public<R> R getCaveFloorBlock(int x, int layer, int z, WrapBlock<R> wrap) {
-         return layer > 0 && isAir(x, layer, z)
-                 ? getTopBlockBelowLayer(x, layer - 1, z, wrap) : null;
+    public<R> R getCaveFloorBlock(int xz, int layer, WrapBlock<R> wrap) {
+         return layer > 0 && isAir(xz, layer)
+                 ? getTopBlockBelowLayer(xz, layer - 1, wrap) : null;
     }
 
-    public NBTTagCompound getCaveFloorBlock(int x, int layer, int z) {
-        return getCaveFloorBlock(x, layer, z, WrapBlock::noWrap);
+    public<R> void forEachCaveFloorBlock(int layer, WrapBlock<R> wrap) {
+        if(layer <= 0)
+            return;
+        final SubChunk scAirCheck = subchunks[layer >> 4];
+        if(scAirCheck != null) {
+            if(layer <= 15) {
+                for(int idx=0 ; idx<256 ; idx++) {
+                    if(scAirCheck.isAir(idx, layer)) {
+                        final int index = scAirCheck.
+                                getTopBlockIndexBelowLayer(idx, layer - 1);
+                        if(index >= 0)
+                            wrap.apply(idx, layer - 1, scAirCheck, index);
+                    }
+                }
+            } else {
+                for(int idx=0 ; idx<256 ; idx++) {
+                    if(scAirCheck.isAir(idx, layer))
+                        getTopBlockBelowLayer(idx, layer - 1, wrap);
+                }
+            }
+        } else if(layer >= 16) {
+            for(int idx=0 ; idx<256 ; idx++)
+                getTopBlockBelowLayer(idx, layer - 1, wrap);
+        }
     }
 
     public SubChunk.BlockInfo getCaveFloorBlockInfo(int x, int layer, int z) {
-        return getCaveFloorBlock(x, layer, z, (y,block) -> makeBlockInfo(x, y, z, block));
+        return getCaveFloorBlock(z*16 + x, layer, makeBlockInfo());
     }
 
     public Stream<SubChunk.BlockInfo> findBlocks(String blockType) {

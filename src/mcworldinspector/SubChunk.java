@@ -21,6 +21,7 @@ public class SubChunk {
     private final byte bits_per_blockstate;
     private final byte air_index;
     private final byte cave_air_index;
+    private BlockColorMap.MappedBlockPalette mappedPalette = BlockColorMap.MappedBlockPalette.EMPTY;
 
     public SubChunk(NBTTagList<NBTTagCompound> palette, NBTLongArray blockStates, byte globalY) {
         this.palette = palette;
@@ -49,35 +50,37 @@ public class SubChunk {
         return palette.stream().map(e -> e.getString("Name"));
     }
     
-    public int getBlockIndex(int x, int y, int z) {
-        int bits = bits_per_blockstate & 255;
-        return blockStates.getBits((y * 256 + z * 16 + x) * bits, bits);
+    public int getBlockIndex(int xz, int y) {
+        final int bits = bits_per_blockstate & 255;
+        return blockStates.getBits((xz + ((y & 15) << 8)) * bits, bits);
     }
 
-    public NBTTagCompound getBlock(int x, int y, int z) {
-        return palette.get(getBlockIndex(x, y, z));
+    public NBTTagCompound getBlockFromPalette(int index) {
+        return (index >= 0 && index < palette.size()) ? palette.get(index) : null;
     }
 
-    public boolean isAir(int x, int y, int z) {
-        int index = getBlockIndex(x, y, z);
+    public boolean isAir(int xz, int y) {
+        int index = getBlockIndex(xz, y);
         return index == air_index || index == cave_air_index;
     }
 
-    public NBTTagCompound getTopBlockBelowLayer(int x, int y, int z) {
+    public int getTopBlockIndexBelowLayer(int xz, int y) {
+        final int bits = bits_per_blockstate & 255;
+        final NBTLongArray bs = blockStates;
         do {
-            int index = getBlockIndex(x, y, z);
-            if(index != air_index && index != cave_air_index) {
-                try {
-                    return palette.get(index);
-                } catch(IndexOutOfBoundsException ex) {
-                    int pos = (y*256+z*16+x)*bits_per_blockstate;
-                    System.err.println("x="+x+" y="+y+" z="+z+
-                            " bits_per_blockstate="+bits_per_blockstate+
-                            " bitpos="+(pos>>6)+":"+(pos&63));
-                }
-            }
+            final int index = bs.getBits((y * 256 + xz) * bits, bits);
+            if(index != air_index && index != cave_air_index)
+                return index;
         } while (y-- > 0);
-        return null;
+        return -1;
+    }
+
+    public void mapBlockColors(BlockColorMap bcm) {
+        mappedPalette = bcm.map(palette);;
+    }
+
+    public BlockColorMap.MappedBlockPalette mappedBlockColors() {
+        return mappedPalette;
     }
 
     public static class BlockInfo extends BlockPos {

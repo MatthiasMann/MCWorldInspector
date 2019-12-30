@@ -11,28 +11,21 @@ import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.Timer;
 import mcworldinspector.nbt.NBTLongArray;
-import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.SimpleListModel;
 
 /**
@@ -103,14 +96,21 @@ public class WorldRenderer extends JComponent {
         int[] render(Chunk chunk, int[] prevY);
     }
 
+    public void setBlockColorMap(BlockColorMap bcm) {
+        executor.submit(() -> world.chunks()
+                .flatMap(Chunk::subChunks)
+                .forEach(sc -> sc.mapBlockColors(bcm)));
+    }
+
     public void startChunkRendering(ChunkRenderer chunkRenderer) {
         final Point center = getViewportCenter();
         center.translate(min_x * 16, min_z * 16);
         final int generation = asyncRenderingGeneration.incrementAndGet();
         executor.submit(() -> {
-            HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>();
+            HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>(
+                    world.getChunks().size());
             world.chunks().forEach(chunk -> regions.computeIfAbsent(
-                    chunk.getRegionStart(), pos -> new ArrayList<>()).add(chunk));
+                    chunk.getRegionStart(), p -> new ArrayList<>(32*32)).add(chunk));
             regions.entrySet().stream().sorted((a,b) -> {
                 return Long.compare(
                         getRegionDistance(a.getKey(), center),
@@ -214,7 +214,7 @@ public class WorldRenderer extends JComponent {
         return new Dimension((max_x - min_x + 1) * 16, (max_z - min_z + 1) * 16);
     }
 
-    private static Color HIGHLIGHT_COLORS[] = { Color.RED, Color.BLUE, Color.GREEN };
+    private static final Color HIGHLIGHT_COLORS[] = { Color.RED, Color.BLUE, Color.GREEN };
     private int highlight_index = 0;
 
     @Override
@@ -243,85 +243,38 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    static class WildcardEntry {
-        final Pattern pattern;
-        final int color;
-
-        public WildcardEntry(String pattern, int color) {
-            this.pattern = Pattern.compile(pattern);
-            this.color = color;
-        }
-
-        public int getColor() {
-            return color;
-        }
-    }
-
-    static final HashMap<String, Integer> BLOCK_TO_COLORMAP = new HashMap<>();
-    static final ArrayList<WildcardEntry> WILDCARDS = new ArrayList<>();
-
-    static {
-        try(InputStream is=WorldRenderer.class.getResourceAsStream("blockmap.txt");
-                InputStreamReader isr=new InputStreamReader(is);
-                BufferedReader br=new BufferedReader(isr)) {
-            br.lines().map(String::trim)
-                    .filter(line -> !line.startsWith("#"))
-                    .forEach(line -> {
-                if(line.startsWith("x0"))
-                    line = line.substring(2);
-                try {
-                    int color = Integer.parseInt(line.substring(0, 6), 16);
-                    color |= 0xFF000000;    // set alpha to opaque
-                    String name = line.substring(7);
-                    if(name.startsWith("^"))
-                        WILDCARDS.add(new WildcardEntry(name, color));
-                    else
-                        BLOCK_TO_COLORMAP.put(name, color);
-                } catch(IllegalArgumentException ex) {
-                }
-            });
-        } catch(IOException ex) {
-        }
-    }
-
     public static int[] renderChunk(Chunk chunk, int[] prevY) {
         final NBTLongArray heightmap = chunk.getHeightmap();
-        int[] data = new int[256];
-        int heightmapIdx = 0;
-        for(int z=0 ; z<16 ; z++) {
-            for(int x=0 ; x<16 ; x++,heightmapIdx+=9) {
-                int top = heightmap.getBits(heightmapIdx, 9) - 1;
-                SubChunk sc;
-                if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
-                    NBTTagCompound block = sc.getBlock(x, top & 15, z);
-                    if(block != null) {
-                        String name = block.getString("Name");
-                        int color = getBlockColorIndex(name);
-                        int py = prevY[x];
-                        if(py != -1 && py != top)
-                            color = scaleRGB(color, (py < top)
-                                    ? COLOR_CHANGE_BRIGHTER
-                                    : COLOR_CHANGE_DARKER);
-                        data[x+z*16] = color;
-                    }
+        final int[] data = new int[256];
+        for(int idx=0 ; idx<256 ; idx++) {
+            final int top = heightmap.getBits(idx*9, 9) - 1;
+            SubChunk sc;
+            if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
+                final int index = sc.getBlockIndex(idx, top);
+                if(index >= 0) {
+                    BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
+                    int color = mbc.getColor(index);
+                    final int py = prevY[idx & 15];
+                    if(py != top && py >= 0)
+                        color = scaleRGB(color, (py < top)
+                                ? COLOR_CHANGE_BRIGHTER
+                                : COLOR_CHANGE_DARKER);
+                    data[idx] = color;
                 }
-                prevY[x] = top;
             }
+            prevY[idx & 15] = top;
         }
         return data;
     }
 
-    public static int[] renderChunkLayer(Chunk chunk, int y) {
-        int[] data = new int[256];
-        for(int z=0 ; z<16 ; z++) {
-            for(int x=0 ; x<16 ; x++) {
-                NBTTagCompound block = chunk.getCaveFloorBlock(x, y, z);
-                if(block != null) {
-                    String name = block.getString("Name");
-                    data[x+z*16] = getBlockColorIndex(name);
-                }
-            }
-        }
+    public static int[] renderChunkLayer(Chunk chunk, int layer) {
+        final int[] data = new int[256];
+        chunk.forEachCaveFloorBlock(layer, (xz,y,sc,index) -> {
+            BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
+            int color = mbc.getColor(index);
+            data[xz] = color;
+            return null;
+        });
         return data;
     }
 
@@ -337,17 +290,6 @@ public class WorldRenderer extends JComponent {
         g = Math.min(255, (g * scale) >> COLOR_CHANGE_SHIFT);
         b = Math.min(255, (b * scale) >> COLOR_CHANGE_SHIFT);
         return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int getBlockColorIndex(String name) {
-        return BLOCK_TO_COLORMAP.computeIfAbsent(name, n -> {
-            Optional<Integer> matched = WILDCARDS.stream().filter(
-                    e -> e.pattern.matcher(n).matches())
-                    .findAny().map(WildcardEntry::getColor);
-            if(!matched.isPresent())
-                System.out.println("Unknown block type: " + n);
-            return matched.orElse(0);
-        });
     }
 
     public static interface HighlightSelector extends Function<World, Stream<? extends HighlightEntry>> {

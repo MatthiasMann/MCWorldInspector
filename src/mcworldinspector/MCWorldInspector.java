@@ -7,6 +7,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -57,6 +59,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private File worldFolder;
     private World world;
     private WorldRenderer renderer;
+    private BlockColorMap blockColorMap = BlockColorMap.EMPTY;
 
     public MCWorldInspector(String[] args) {
         super("MC World Inspector");
@@ -68,6 +71,12 @@ public class MCWorldInspector extends javax.swing.JFrame {
         filteredPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer));
         filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer));
         filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer));
+
+        try(InputStream is = MCWorldInspector.class.getResourceAsStream("blockmap.txt")) {
+            blockColorMap = BlockColorMap.load(is);
+        } catch(IOException ex) {
+            blockColorMap = BlockColorMap.EMPTY;
+        }
     }
 
     public WorldRenderer getRenderer() {
@@ -160,6 +169,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         World oldWorld = this.world;
         this.world = world;
         renderer = new WorldRenderer(world);
+        renderer.setBlockColorMap(blockColorMap);
         mainarea.setViewportView(renderer);
         renderChunks();
         highlightListPanel.setRenderer(renderer);
