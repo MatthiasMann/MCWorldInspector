@@ -62,11 +62,6 @@ public class NBTTagList<T> extends NBTArray<T> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return entries.isEmpty();
-    }
-
-    @Override
     public int size() {
         return entries.size();
     }

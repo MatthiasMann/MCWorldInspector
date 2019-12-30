@@ -8,29 +8,25 @@ import java.nio.DoubleBuffer;
  */
 public class NBTDoubleArray extends NBTArray<Double> {
     
-    private final DoubleBuffer b;
+    private final double[] data;
 
     NBTDoubleArray(DoubleBuffer b) {
-        this.b = b;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return !b.hasRemaining();
+        data = new double[b.remaining()];
+        b.get(data);
     }
 
     @Override
     public int size() {
-        return b.remaining();
+        return data.length;
     }
     
     public double getDouble(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
     
     @Override
     public Double get(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
     
 }

@@ -9,32 +9,28 @@ import java.util.stream.IntStream;
  */
 public class NBTIntArray extends NBTArray<Integer> {
     
-    private final IntBuffer b;
+    private final int[] data;
 
     NBTIntArray(IntBuffer b) {
-        this.b = b;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return !b.hasRemaining();
+        data = new int[b.remaining()];
+        b.get(data);
     }
 
     @Override
     public int size() {
-        return b.remaining();
+        return data.length;
     }
     
     public int getInt(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
 
     @Override
     public Integer get(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
     
     public IntStream stream() {
-        return IntStream.range(0, b.remaining()).map(idx -> b.get(idx));
+        return IntStream.of(data);
     }
 }

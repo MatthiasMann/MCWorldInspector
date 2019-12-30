@@ -8,29 +8,25 @@ import java.nio.ShortBuffer;
  */
 public class NBTShortArray extends NBTArray<Short> {
     
-    private final ShortBuffer b;
+    private final short[] data;
 
     NBTShortArray(ShortBuffer b) {
-        this.b = b;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return !b.hasRemaining();
+        data = new short[b.remaining()];
+        b.get(data);
     }
 
     @Override
     public int size() {
-        return b.remaining();
+        return data.length;
     }
     
     public short getShort(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
 
     @Override
     public Short get(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
 
 }

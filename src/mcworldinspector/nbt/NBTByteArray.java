@@ -8,28 +8,24 @@ import java.nio.ByteBuffer;
  */
 public class NBTByteArray extends NBTArray<Byte> {
     
-    private final ByteBuffer b;
+    private final byte[] data;
 
     NBTByteArray(ByteBuffer b) {
-        this.b = b;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return !b.hasRemaining();
+        data = new byte[b.remaining()];
+        b.get(data);
     }
 
     @Override
     public int size() {
-        return b.remaining();
+        return data.length;
     }
     
     public byte getByte(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
 
     @Override
     public Byte get(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
 }

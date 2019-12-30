@@ -8,37 +8,33 @@ import java.nio.LongBuffer;
  */
 public class NBTLongArray extends NBTArray<Long> {
     
-    private final LongBuffer b;
+    private final long[] data;
 
     NBTLongArray(LongBuffer b) {
-        this.b = b;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return !b.hasRemaining();
+        data = new long[b.remaining()];
+        b.get(data);
     }
 
     @Override
     public int size() {
-        return b.remaining();
+        return data.length;
     }
     
     public long getLong(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
     
     @Override
     public Long get(int idx) {
-        return b.get(idx);
+        return data[idx];
     }
     
     public int getBits(int pos, int bits) {
         int index = pos >> 6;
         int bit = pos & 63;
-        int value = (int)(b.get(index) >>> bit);
+        int value = (int)(data[index] >>> bit);
         if(bit + bits > 64)
-            value |= (int)b.get(index + 1) << (64 - bit);
+            value |= (int)data[index + 1] << (64 - bit);
         return value & ((1 << bits) - 1);
     }
 }

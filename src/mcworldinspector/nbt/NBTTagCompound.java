@@ -9,6 +9,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
@@ -147,19 +148,19 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
             case 4: return data.getLong();
             case 5: return data.getFloat();
             case 6: return data.getDouble();
-            case 7: return new NBTByteArray(slice(data, data.getInt()));
+            case 7: return slice(data, data.getInt(), NBTByteArray::new);
             case 8: return readUTF8(data);
             case 9: {
                 int tagid = data.get();
                 int len = data.getInt();
                 switch (tagid) {
                     case 0: return null;
-                    case 1: return new NBTByteArray(slice(data, len));
-                    case 2: return new NBTShortArray(slice(data, len*2).asShortBuffer());
-                    case 3: return new NBTIntArray(slice(data, len*4).asIntBuffer());
-                    case 4: return new NBTLongArray(slice(data, len*8).asLongBuffer());
-                    case 5: return new NBTFloatArray(slice(data, len*4).asFloatBuffer());
-                    case 6: return new NBTDoubleArray(slice(data, len*8).asDoubleBuffer());
+                    case 1: return slice(data, len, NBTByteArray::new);
+                    case 2: return new NBTShortArray(slice(data, len*2, ByteBuffer::asShortBuffer));
+                    case 3: return new NBTIntArray(slice(data, len*4, ByteBuffer::asIntBuffer));
+                    case 4: return new NBTLongArray(slice(data, len*8, ByteBuffer::asLongBuffer));
+                    case 5: return new NBTFloatArray(slice(data, len*4, ByteBuffer::asFloatBuffer));
+                    case 6: return new NBTDoubleArray(slice(data, len*8, ByteBuffer::asDoubleBuffer));
                     case 7: return parseTagList(data, tagid, len, NBTByteArray.class);
                     case 8: return parseTagList(data, tagid, len, String.class);
                     case 9: return parseTagList(data, tagid, len, NBTArray.class);
@@ -179,8 +180,8 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
                 }
                 return map;
             }
-            case 11: return new NBTIntArray(slice(data, data.getInt()*4).asIntBuffer());
-            case 12: return new NBTLongArray(slice(data, data.getInt()*8).asLongBuffer());
+            case 11: return new NBTIntArray(slice(data, data.getInt()*4, ByteBuffer::asIntBuffer));
+            case 12: return new NBTLongArray(slice(data, data.getInt()*8, ByteBuffer::asLongBuffer));
             default:
                 throw new IllegalArgumentException("Unknown TAG=" + tag);
         }
@@ -193,12 +194,16 @@ public class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String
         return list;
     }
 
-    private static ByteBuffer slice(ByteBuffer b, int len) {
+    private static<R> R slice(ByteBuffer b, int len, Function<ByteBuffer, R> slicer) {
         int new_pos = b.position() + len;
-        ByteBuffer ret = b.duplicate();
-        ret.limit(new_pos);
-        b.position(new_pos);
-        return ret.slice();
+        int old_limit = b.limit();
+        try {
+            b.limit(new_pos);
+            return slicer.apply(b);
+        } finally {
+            b.limit(old_limit);
+            b.position(new_pos);
+        }
     }
 
     private static String readUTF8(ByteBuffer b) {

@@ -8,7 +8,9 @@ import java.util.Iterator;
  */
 public abstract class NBTArray<T> extends NBTBase implements Iterable<T> {
     
-    public abstract boolean isEmpty();
+    public boolean isEmpty() {
+        return size() == 0;
+    }
     public abstract int size();
     public abstract T get(int index);
 
