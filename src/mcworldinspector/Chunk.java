@@ -97,6 +97,16 @@ public class Chunk extends XZPosition {
         return new SubChunk.BlockInfo((x << 4) + localX, y, (z << 4) + localZ, block);
     }
 
+    public NBTLongArray getHeightmap() {
+        return heightmap;
+    }
+
+    public void getHeights(int z, int[] heights) {
+        int bitIdx = z * 16 * 9;
+        for(int xx=0 ; xx<16 ; xx++, bitIdx += 9)
+            heights[xx] = heightmap.getBits(bitIdx, 9) - 1;
+    }
+
     public<R> R getTopBlock(int x, int z, WrapBlock<R> wrap) {
         if(heightmap != null) {
             int top = heightmap.getBits((z*16+x)*9, 9) - 1;

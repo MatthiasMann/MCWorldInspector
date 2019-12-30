@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -29,8 +30,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
-import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.SimpleListModel;
 
@@ -98,7 +99,11 @@ public class WorldRenderer extends JComponent {
         return x*x + z*z;
     }
 
-    public void startChunkRendering(Function<Chunk, int[]> chunkRenderer) {
+    public static @FunctionalInterface interface ChunkRenderer {
+        int[] render(Chunk chunk, int[] prevY);
+    }
+
+    public void startChunkRendering(ChunkRenderer chunkRenderer) {
         final Point center = getViewportCenter();
         center.translate(min_x * 16, min_z * 16);
         final int generation = asyncRenderingGeneration.incrementAndGet();
@@ -114,8 +119,34 @@ public class WorldRenderer extends JComponent {
                 if(generation != asyncRenderingGeneration.get())
                     return;
                 BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
-                e.getValue().forEach(chunk -> img.getRaster().setDataElements(
-                        chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16, chunkRenderer.apply(chunk)));
+                final ArrayList<Chunk> chunks = e.getValue();
+                chunks.sort((a,b) -> {
+                    int diff = a.getLocalX() - b.getLocalX();
+                    if(diff == 0)
+                        diff = a.getLocalZ() - b.getLocalZ();
+                    return diff;
+                });
+                int[] prevY = new int[16];
+                int prevX = -1;
+                int prevZ = 0;
+                for(Chunk chunk : chunks) {
+                    if(chunk.isEmpty())
+                        continue;
+                    if(prevX != chunk.getLocalX() || prevZ + 1 != chunk.getLocalZ()) {
+                        Chunk aboveChunk;
+                        if(chunk.getLocalZ() == 0 && (aboveChunk = world.getChunk(
+                                chunk.getGlobalX(), chunk.getGlobalZ() - 1)) != null &&
+                                !aboveChunk.isEmpty())
+                            aboveChunk.getHeights(15, prevY);
+                        else
+                            Arrays.fill(prevY, -1);
+                    }
+                    img.getRaster().setDataElements(
+                        chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
+                            chunkRenderer.render(chunk, prevY));
+                    prevX = chunk.getLocalX();
+                    prevZ = chunk.getLocalZ();
+                }
                 EventQueue.invokeLater(() -> {
                     final XZPosition p = e.getKey();
                     images.put(p, img);
@@ -253,15 +284,28 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    public static int[] renderChunk(Chunk chunk) {
+    public static int[] renderChunk(Chunk chunk, int[] prevY) {
+        final NBTLongArray heightmap = chunk.getHeightmap();
         int[] data = new int[256];
+        int heightmapIdx = 0;
         for(int z=0 ; z<16 ; z++) {
-            for(int x=0 ; x<16 ; x++) {
-                NBTTagCompound block = chunk.getTopBlock(x, z);
-                if(block != null) {
-                    String name = block.getString("Name");
-                    data[x+z*16] = getBlockColorIndex(name);
+            for(int x=0 ; x<16 ; x++,heightmapIdx+=9) {
+                int top = heightmap.getBits(heightmapIdx, 9) - 1;
+                SubChunk sc;
+                if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
+                    NBTTagCompound block = sc.getBlock(x, top & 15, z);
+                    if(block != null) {
+                        String name = block.getString("Name");
+                        int color = getBlockColorIndex(name);
+                        int py = prevY[x];
+                        if(py != -1 && py != top)
+                            color = scaleRGB(color, (py < top)
+                                    ? COLOR_CHANGE_BRIGHTER
+                                    : COLOR_CHANGE_DARKER);
+                        data[x+z*16] = color;
+                    }
                 }
+                prevY[x] = top;
             }
         }
         return data;
@@ -280,7 +324,21 @@ public class WorldRenderer extends JComponent {
         }
         return data;
     }
-    
+
+    private static final int COLOR_CHANGE_SHIFT    = 8;
+    private static final int COLOR_CHANGE_BRIGHTER = (1 << COLOR_CHANGE_SHIFT) * 110 / 100;
+    private static final int COLOR_CHANGE_DARKER   = (1 << COLOR_CHANGE_SHIFT) *  90 / 100;
+
+    private static int scaleRGB(int color, int scale) {
+        int r = (color >> 16) & 0xFF;
+        int g = (color >>  8) & 0xFF;
+        int b = (color      ) & 0xFF;
+        r = Math.min(255, (r * scale) >> COLOR_CHANGE_SHIFT);
+        g = Math.min(255, (g * scale) >> COLOR_CHANGE_SHIFT);
+        b = Math.min(255, (b * scale) >> COLOR_CHANGE_SHIFT);
+        return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
+    }
+
     private static int getBlockColorIndex(String name) {
         return BLOCK_TO_COLORMAP.computeIfAbsent(name, n -> {
             Optional<Integer> matched = WILDCARDS.stream().filter(
