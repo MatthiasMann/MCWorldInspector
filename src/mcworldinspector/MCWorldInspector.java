@@ -83,6 +83,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Villagers", new VillagerPanel(this::getRenderer, workerPool));
         filteredPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));

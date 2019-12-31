@@ -19,6 +19,8 @@ import mcworldinspector.utils.AsyncExecution;
  * @author matthias
  */
 public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
+    public static final String MINECRAFT_SHEEP = "minecraft:sheep";
+
     private final ExecutorService executorService;
     private Set<MCColor> colors = Collections.EMPTY_SET;
 
@@ -36,8 +38,10 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
     @Override
     public void setWorld(World world) {
         AsyncExecution.submitNoThrow(executorService, () -> {
-            return world.chunks().flatMap(Chunk::sheepColors)
-                    .collect(Collectors.toCollection(TreeSet::new));
+            return world.chunks()
+                    .flatMap(chunk -> chunk.getEntities(MINECRAFT_SHEEP))
+                    .flatMap(v -> MCColor.asStream(v.get("Color", Byte.class)))
+                .collect(Collectors.toCollection(TreeSet::new));
         }, result -> {
             colors = result;
             buildListModel();
@@ -76,8 +80,6 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
             return colors.contains(MCColor.fromByte(e.get("Color", Byte.class)));
         }
 
-        private static final String MINECRAFT_SHEEP = "minecraft:sheep";
-
         @Override
         public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
@@ -88,9 +90,8 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
 
         @Override
         public void showDetailsFor(Component parent, HighlightEntry entry) {
-            NBTTagList<NBTTagCompound> result = colors.stream()
-                    .flatMap(chunk -> entry.chunk.getEntities(MINECRAFT_SHEEP))
-                    .filter(this::filterColor)
+            NBTTagList<NBTTagCompound> result = entry.chunk
+                    .getEntities(MINECRAFT_SHEEP).filter(this::filterColor)
                     .collect(NBTTagList.toTagList(NBTTagCompound.class));
             NBTTreeModel.displayNBT(parent, result, "Sheep details for " + entry);
         }

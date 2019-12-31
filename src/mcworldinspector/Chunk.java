@@ -204,12 +204,6 @@ public class Chunk extends XZPosition {
         return entities().flatMap(toID());
     }
 
-    public Stream<MCColor> sheepColors() {
-        return entities()
-                .filter(v -> "minecraft:sheep".equals(v.getString("id")))
-                .flatMap(v -> MCColor.asStream(v.get("Color", Byte.class)));
-    }
-
     public Stream<NBTTagCompound> getEntities(String id) {
         return entities().filter(filterByID(id));
     }
