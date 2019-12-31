@@ -14,6 +14,10 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
@@ -47,6 +51,7 @@ import mcworldinspector.utils.StatusBar;
 public class MCWorldInspector extends javax.swing.JFrame {
 
     private final Preferences preferences;
+    private final ExecutorService workerPool;
     private final JScrollPane mainarea = new JScrollPane();
     private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
     private final SimpleThingsPanel simpleThingsPanel = new SimpleThingsPanel(this::getRenderer);
@@ -64,13 +69,23 @@ public class MCWorldInspector extends javax.swing.JFrame {
     public MCWorldInspector(String[] args) {
         super("MC World Inspector");
         this.preferences = Preferences.userNodeForPackage(MCWorldInspector.class);
-        
-        filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer));
-        filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer));
-        filteredPanels.put("Sheep", new SheepColorPanel(this::getRenderer));
-        filteredPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer));
-        filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer));
-        filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer));
+        this.workerPool = Executors.newCachedThreadPool(new ThreadFactory() {
+            private final AtomicInteger threadNumber = new AtomicInteger(1);
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r,
+                        "UI Worker " + threadNumber.getAndIncrement());
+                thread.setPriority(Thread.NORM_PRIORITY - 1);
+                return thread;
+            }
+        });
+
+        filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
+        filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));
 
         try(InputStream is = MCWorldInspector.class.getResourceAsStream("blockmap.txt")) {
             blockColorMap = BlockColorMap.load(is);

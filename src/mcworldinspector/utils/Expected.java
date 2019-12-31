@@ -1,5 +1,7 @@
 package mcworldinspector.utils;
 
+import java.io.File;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -30,6 +32,14 @@ public class Expected<T> {
             after.accept((T)value);
     }
 
+    public static<T> Consumer<Expected<T>> consumer(Consumer<T> after, Consumer<Exception> errorHandler) {
+        return expected -> expected.andThen(after, errorHandler);
+    }
+
+    public static<T> Consumer<Expected<T>> consumer(Consumer<T> after, List<FileError> errors, File file) {
+        return consumer(after, ex -> errors.add(FileError.from(file, ex)));
+    }
+
     public @FunctionalInterface interface ThrowingSupplier<T> {
         public T get() throws Exception;
     };
@@ -42,7 +52,7 @@ public class Expected<T> {
         }
     }
 
-    public static<R> Expected<R> wrapAsync(AsyncTask<R> task) {
+    public static<R> Expected<R> wrapAsync(AsyncExecution<R> task) {
         try {
             return new Expected<>(task.asyncExecute());
         } catch(Exception ex) {

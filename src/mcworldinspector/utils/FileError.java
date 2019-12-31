@@ -29,4 +29,11 @@ public class FileError {
         return "In " + file + ": " + error;
     }
 
+    public static FileError from(File file, Exception e) {
+        if(e instanceof IOExceptionWithOffset) {
+            IOExceptionWithOffset wo = (IOExceptionWithOffset)e;
+            return new FileOffsetError(file, wo.getOffset(), wo.getCause());
+        } else
+            return new FileError(file, e);
+    }
 }

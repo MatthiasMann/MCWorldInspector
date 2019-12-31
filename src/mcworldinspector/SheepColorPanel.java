@@ -4,22 +4,27 @@ import java.awt.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
+import mcworldinspector.utils.AsyncExecution;
 
 /**
  *
  * @author matthias
  */
 public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
+    private final ExecutorService executorService;
     private Set<MCColor> colors = Collections.EMPTY_SET;
 
-    public SheepColorPanel(Supplier<WorldRenderer> renderer) {
+    public SheepColorPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
+        this.executorService = executorService;
     }
 
     @Override
@@ -30,8 +35,13 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
 
     @Override
     public void setWorld(World world) {
-        colors = world.getSheepColors();
-        buildListModel();
+        AsyncExecution.submitNoThrow(executorService, () -> {
+            return world.chunks().flatMap(Chunk::sheepColors)
+                    .collect(Collectors.toCollection(TreeSet::new));
+        }, result -> {
+            colors = result;
+            buildListModel();
+        });
     }
 
     @Override

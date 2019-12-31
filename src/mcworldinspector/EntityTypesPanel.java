@@ -4,21 +4,27 @@ import java.awt.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
+import mcworldinspector.utils.AsyncExecution;
 
 /**
  *
  * @author matthias
  */
 public class EntityTypesPanel extends AbstractFilteredPanel<String> {
+    private final ExecutorService executorService;
     private Set<String> entities = Collections.EMPTY_SET;
 
-    public EntityTypesPanel(Supplier<WorldRenderer> renderer) {
+    public EntityTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
+        this.executorService = executorService;
     }
 
     @Override
@@ -29,8 +35,13 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void setWorld(World world) {
-        entities = world.getEntityTypes();
-        buildListModel();
+        AsyncExecution.submitNoThrow(executorService, () -> {
+            return world.chunks().flatMap(Chunk::entityTypes)
+                    .collect(Collectors.toCollection(TreeSet::new));
+        }, result -> {
+            entities = result;
+            buildListModel();
+        });
     }
 
     @Override

@@ -5,18 +5,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.util.Objects;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.zip.DataFormatException;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.utils.AsyncTask;
+import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.Expected;
+import mcworldinspector.utils.IOExceptionWithOffset;
 
 /**
  *
@@ -29,7 +29,7 @@ public class RegionFile {
     private RegionFile() {}
 
     @SuppressWarnings("UseSpecificCatch")
-    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, BiConsumer<Expected<Chunk>, Integer> c) throws IOException {
+    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, Consumer<List<Expected<Chunk>>> c) throws IOException {
         Matcher matcher = NAME_PATTERN.matcher(file.getName());
         if(!matcher.matches())
             throw new IOException("Invalid file name: " + file);
@@ -49,28 +49,27 @@ public class RegionFile {
         }
 
         openFiles.incrementAndGet();
-        return AsyncTask.submit(e, IntStream.range(0, 32*32).mapToObj(idx -> {
-            final int offset = offsets.getInt(idx * 4);
-            if(offset <= 0)
-                return null;
-            final int chunkZ = globalZ + (idx >> 5);
-            final int chunkX = globalX + (idx & 31);
-            return new AsyncTask<Chunk>() {
-                @Override
-                public Chunk asyncExecute() throws Exception {
-                    return loadChunk(raf, offset, chunkX, chunkZ);
-                }
-                @Override
-                public void completed(Expected<Chunk> result) {
-                    c.accept(result, offset);
-                }
-            };
-        }).filter(Objects::nonNull), () -> {
-            openFiles.decrementAndGet();
-            try {
-                raf.close();
-            } catch(IOException ex) {}
-        });
+        return AsyncExecution.<Chunk>submit(e,
+                IntStream.range(0, 32*32).mapToObj(idx -> {
+                    final int offset = offsets.getInt(idx * 4);
+                    if(offset <= 0)
+                        return null;
+                    final int chunkZ = globalZ + (idx >> 5);
+                    final int chunkX = globalX + (idx & 31);
+                    return () -> {
+                        try {
+                            return loadChunk(raf, offset, chunkX, chunkZ);
+                        } catch(IOException ex) {
+                            throw new IOExceptionWithOffset(offset, ex);
+                        }
+                    };
+                }), results -> {
+                    openFiles.decrementAndGet();
+                    try {
+                        raf.close();
+                    } catch(IOException ex) {}
+                    c.accept(results);
+                });
     }
 
     private static Chunk loadChunk(RandomAccessFile raf, int offset, int globalX, int globalZ) throws IOException {

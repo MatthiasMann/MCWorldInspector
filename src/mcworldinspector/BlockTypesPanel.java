@@ -8,7 +8,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
@@ -18,6 +21,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.LayoutStyle;
 import javax.swing.SwingUtilities;
+import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.MapTreeModel;
 
 /**
@@ -25,10 +29,12 @@ import mcworldinspector.utils.MapTreeModel;
  * @author matthias
  */
 public class BlockTypesPanel extends AbstractFilteredPanel<String> {
+    private final ExecutorService executorService;
     private Set<String> blockTypes = Collections.EMPTY_SET;
 
-    public BlockTypesPanel(Supplier<WorldRenderer> renderer) {
+    public BlockTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
+        this.executorService = executorService;
     }
 
     @Override
@@ -39,8 +45,16 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void setWorld(World world) {
-        blockTypes = world.getBlockTypes();
-        buildListModel();
+        AsyncExecution.submitNoThrow(executorService, () -> {
+            return world.chunks().flatMap(Chunk::getBlockTypes)
+                    .collect(Collectors.toCollection(TreeSet::new));
+        }, result -> {
+            result.remove("minecraft:air");
+            result.remove("minecraft:cave_air");
+            result.remove("minecraft:bedrock");
+            blockTypes = result;
+            buildListModel();
+        });
     }
 
     @Override

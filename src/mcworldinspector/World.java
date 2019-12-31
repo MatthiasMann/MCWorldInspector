@@ -11,20 +11,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.utils.AsyncTask;
+import mcworldinspector.utils.AsyncExecution;
+import mcworldinspector.utils.Expected;
 import mcworldinspector.utils.FileError;
 import mcworldinspector.utils.FileHelpers;
-import mcworldinspector.utils.FileOffsetError;
 
 /**
  *
@@ -35,31 +34,11 @@ public class World {
     private NBTTagCompound level = NBTTagCompound.EMPTY;
     private Map<Integer, Biome> biomeRegistry = Collections.EMPTY_MAP;
     private final HashMap<XZPosition, Chunk> chunks = new HashMap<>();
-    private final TreeSet<String> blockTypes = new TreeSet<>();
-    private final TreeSet<String> entityTypes = new TreeSet<>();
-    private final TreeSet<MCColor> sheepColors = new TreeSet<>();
-    private final TreeSet<String> tileEntityTypes = new TreeSet<>();
-    private final TreeSet<String> structureTypes = new TreeSet<>();
-    private Set<Biome> biomes = Collections.EMPTY_SET;
 
     private World() {
     }
 
-    private void addChunk(Chunk chunk) {
-        if(chunks.putIfAbsent(chunk, chunk) == null) {
-            chunk.getBlockTypes().forEach(blockTypes::add);
-            chunk.entityTypes().forEach(entityTypes::add);
-            chunk.sheepColors().forEach(sheepColors::add);
-            chunk.tileEntityTypes().forEach(tileEntityTypes::add);
-            chunk.structureTypes().forEach(structureTypes::add);
-        }
-    }
-    
     private void finish() {
-        blockTypes.remove("minecraft:air");
-        blockTypes.remove("minecraft:cave_air");
-        blockTypes.remove("minecraft:bedrock");
-        
         biomeRegistry = level.getCompound("fml").getCompound("Registries")
                 .getCompound("minecraft:biome")
                 .getList("ids", NBTTagCompound.class)
@@ -72,10 +51,6 @@ public class World {
                 }).collect(Collectors.toMap(Biome::getNumericID, v -> v));
         if(biomeRegistry.isEmpty())
             biomeRegistry = Biome.VANILLA_BIOMES;
-
-        biomes = chunks.values().parallelStream()
-                .flatMap(c -> c.biomes(biomeRegistry))
-                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     public NBTTagCompound getLevel() {
@@ -93,33 +68,9 @@ public class World {
     public Chunk getChunk(NBTDoubleArray pos) {
         return getChunk((int)pos.getDouble(0) >> 4, (int)pos.getDouble(2) >> 4);
     }
-    
-    public TreeSet<String> getBlockTypes() {
-        return blockTypes;
-    }
-
-    public TreeSet<String> getEntityTypes() {
-        return entityTypes;
-    }
-
-    public TreeSet<MCColor> getSheepColors() {
-        return sheepColors;
-    }
-
-    public TreeSet<String> getTileEntityTypes() {
-        return tileEntityTypes;
-    }
-
-    public TreeSet<String> getStructureTypes() {
-        return structureTypes;
-    }
 
     public Map<Integer, Biome> getBiomeRegistry() {
         return biomeRegistry;
-    }
-
-    public Set<Biome> getBiomes() {
-        return biomes;
     }
 
     public Stream<Chunk> chunks() {
@@ -177,7 +128,7 @@ public class World {
             File levelDatFile = FileHelpers.findFileThroughParents(folder, "level.dat", 2);
             if(levelDatFile != null) {
                 ++total;
-                AsyncTask.submit(executor, () -> loadLevelDat(levelDatFile),
+                AsyncExecution.submit(executor, () -> loadLevelDat(levelDatFile),
                         result -> {
                             result.andThen(level -> {
                                 world.level = level;
@@ -186,7 +137,7 @@ public class World {
                                 propertyChangeSupport.firePropertyChange(
                                         "levelName", oldName, levelName);
                             }, ex -> errors.add(new FileError(levelDatFile, ex)));
-                            incProgress();
+                            incProgress(1);
                             checkDone();
                         });
             }
@@ -224,15 +175,17 @@ public class World {
             int oldProgress = progress;
             while(openFiles.get() < 10 && files.hasNext()) {
                 final File file = files.next();
+                final HashMap<XZPosition, Chunk> chunks = world.chunks;
+                final Consumer<Expected<Chunk>> handler = Expected.consumer(
+                        chunk -> {
+                            if(!chunk.isEmpty())
+                                chunks.put(chunk, chunk);
+                        }, errors, file);
                 try {
                     total += RegionFile.loadAsync(file, executor, openFiles,
-                            (result, offset) -> {
-                                result.andThen(chunk -> {
-                                    if(!chunk.isEmpty())
-                                        world.addChunk(chunk);
-                                }, ex -> errors.add(
-                                        new FileOffsetError(file, offset, ex)));
-                                incProgress();
+                            results -> {
+                                results.forEach(handler);
+                                incProgress(results.size());
                                 submitAsyncLoads();
                                 checkDone();
                             });
@@ -246,8 +199,9 @@ public class World {
             propertyChangeSupport.firePropertyChange("progress", oldProgress, progress);
         }
         
-        private void incProgress() {
-            int oldProgress = progress++;
+        private void incProgress(int amount) {
+            int oldProgress = progress;
+            progress += amount;
             propertyChangeSupport.firePropertyChange("progress", oldProgress, progress);
         }
         
