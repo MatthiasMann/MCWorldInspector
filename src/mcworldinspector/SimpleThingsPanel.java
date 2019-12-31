@@ -2,28 +2,47 @@ package mcworldinspector;
 
 import java.awt.Component;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.SwingUtilities;
-import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
+import mcworldinspector.utils.AsyncExecution;
 
 /**
  *
  * @author matthias
  */
 public class SimpleThingsPanel extends javax.swing.JPanel {
+    private final ExecutorService executorService;
     private final Supplier<WorldRenderer> renderer;
+    private World world;
+    private ChestSearchDialog searchChestDlg;
 
-    public SimpleThingsPanel(Supplier<WorldRenderer> renderer) {
+    public SimpleThingsPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         this.renderer = renderer;
+        this.executorService = executorService;
         initComponents();
+    }
+
+    public void setWorld(World world) {
+        this.world = world;
+        this.searchChestDlg = null;
+        boolean enabled = world != null;
+        btnLootChests.setEnabled(enabled);
+        btnPlayerPos.setEnabled(enabled);
+        btnSearchChests.setEnabled(enabled);
+        btnSlimeChunks.setEnabled(enabled);
+        btnSpawnChunk.setEnabled(enabled);
+        btnTulpis.setEnabled(enabled);
     }
 
     /**
@@ -43,6 +62,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         btnTulpis = new javax.swing.JButton();
 
         btnSlimeChunks.setText("Highlight slime chunks");
+        btnSlimeChunks.setEnabled(false);
         btnSlimeChunks.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnSlimeChunksActionPerformed(evt);
@@ -50,6 +70,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         });
 
         btnPlayerPos.setText("Highlight player position");
+        btnPlayerPos.setEnabled(false);
         btnPlayerPos.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnPlayerPosActionPerformed(evt);
@@ -57,6 +78,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         });
 
         btnSpawnChunk.setText("Highlight spawn chunk");
+        btnSpawnChunk.setEnabled(false);
         btnSpawnChunk.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnSpawnChunkActionPerformed(evt);
@@ -64,6 +86,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         });
 
         btnSearchChests.setText("Search chests ...");
+        btnSearchChests.setEnabled(false);
         btnSearchChests.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnSearchChestsActionPerformed(evt);
@@ -71,6 +94,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         });
 
         btnLootChests.setText("Highlight loot chests");
+        btnLootChests.setEnabled(false);
         btnLootChests.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnLootChestsActionPerformed(evt);
@@ -78,6 +102,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         });
 
         btnTulpis.setText("Tulpis in Plains");
+        btnTulpis.setEnabled(false);
         btnTulpis.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnTulpisActionPerformed(evt);
@@ -150,23 +175,41 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             });
     }//GEN-LAST:event_btnSpawnChunkActionPerformed
 
-    private ChestSearchDialog searchChestDlg;
-
     private void btnSearchChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchChestsActionPerformed
-        if(searchChestDlg == null)
-            searchChestDlg = new ChestSearchDialog(SwingUtilities.getWindowAncestor(this));
+        if(world == null)
+            return;
+        if(searchChestDlg == null) {
+            final World world = this.world;
+            final ChestSearchDialog dlg = new ChestSearchDialog(SwingUtilities.getWindowAncestor(this));
+            AsyncExecution.submitNoThrow(executorService, () -> world.getLevel()
+                    .getCompound("fml")
+                    .getCompound("Registries")
+                    .getCompound("minecraft:item")
+                    .getList("ids", NBTTagCompound.class).stream()
+                    .map(item -> item.getString("K"))
+                    .filter(Objects::nonNull)
+                    .sorted().collect(Collectors.toList()),
+                    result -> dlg.installAutoCompletion(result));
+            searchChestDlg = dlg;
+        }
         if(!searchChestDlg.run())
             return;
         final String item = searchChestDlg.getItem();
         final WorldRenderer r = renderer.get();
         if(r == null)
             return;
+        final Predicate<NBTTagCompound> itemPred =
+                i -> item.equals(i.getString("id"));
         r.highlight(new TileEntityHighlighter(tile -> {
-                String id = tile.getString("id");
-                return ("minecraft:chest".equals(id) || "minecraft:barrel".equals(id)) &&
-                        tile.getList("Items", NBTTagCompound.class)
-                                .stream().anyMatch(i -> item.equals(i.getString("id")));
-            }, "Loot chests details for "));
+            Stream<NBTTagCompound> items = Stream.concat(
+                    tile.getList("Items", NBTTagCompound.class).stream(),
+                    tile.getList("inventory", NBTTagCompound.class).stream());
+            NBTTagList<NBTTagCompound> drawers = tile.getList("Drawers", NBTTagCompound.class);
+            if(!drawers.isEmpty())
+                items = Stream.concat(items, drawers.stream()
+                        .map(d -> d.getCompound("Item")));
+            return items.anyMatch(itemPred);
+        }, "Chests containing " + item));
     }//GEN-LAST:event_btnSearchChestsActionPerformed
 
     private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed

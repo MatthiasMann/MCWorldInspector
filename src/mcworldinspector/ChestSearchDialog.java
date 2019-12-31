@@ -1,7 +1,9 @@
 package mcworldinspector;
 
+import java.util.List;
 import javax.swing.event.DocumentEvent;
 import mcworldinspector.utils.DocumentChangedListener;
+import mcworldinspector.utils.TextFieldAutoCompletion;
 
 /**
  *
@@ -20,6 +22,10 @@ public class ChestSearchDialog extends javax.swing.JDialog {
                 btnOk.setEnabled(!tfItem.getText().isEmpty());
             }
         });
+    }
+
+    public void installAutoCompletion(List<String> items) {
+        TextFieldAutoCompletion.install(tfItem, items);
     }
 
     public String getItem() {

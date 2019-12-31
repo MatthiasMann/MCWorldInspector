@@ -53,10 +53,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final Preferences preferences;
     private final ExecutorService workerPool;
     private final JScrollPane mainarea = new JScrollPane();
-    private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels = new TreeMap<>();
-    private final SimpleThingsPanel simpleThingsPanel = new SimpleThingsPanel(this::getRenderer);
-    private final RenderOptionsPanel renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
-    private final HighlightListPanel highlightListPanel = new HighlightListPanel();
+    private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels;
+    private final SimpleThingsPanel simpleThingsPanel;
+    private final RenderOptionsPanel renderOptionsPanel;
+    private final HighlightListPanel highlightListPanel;
     private final StatusBar statusBar = new StatusBar();
     private final JTextField statusBarCursorPos = new JTextField();
     private final JTextField statusBarBiome = new JTextField();
@@ -80,6 +80,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
 
+        simpleThingsPanel = new SimpleThingsPanel(this::getRenderer, workerPool);
+        renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
+        highlightListPanel = new HighlightListPanel();
+        filteredPanels = new TreeMap<>();
         filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
@@ -143,6 +147,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         world = null;
         mainarea.setViewportView(null);
         filteredPanels.values().forEach(AbstractFilteredPanel::reset);
+        simpleThingsPanel.setWorld(null);
         highlightListPanel.setRenderer(null);
         firePropertyChange("world", oldWorld, world);
     }
@@ -189,6 +194,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.setViewportView(renderer);
         renderChunks();
         highlightListPanel.setRenderer(renderer);
+        simpleThingsPanel.setWorld(world);
         filteredPanels.values().forEach(p -> p.setWorld(world));
         MouseAdapter ma = new MouseAdapter() {
             private int startMouseX;

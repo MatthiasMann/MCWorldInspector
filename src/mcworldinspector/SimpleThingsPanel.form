@@ -54,6 +54,7 @@
     <Component class="javax.swing.JButton" name="btnSlimeChunks">
       <Properties>
         <Property name="text" type="java.lang.String" value="Highlight slime chunks"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnSlimeChunksActionPerformed"/>
@@ -62,6 +63,7 @@
     <Component class="javax.swing.JButton" name="btnPlayerPos">
       <Properties>
         <Property name="text" type="java.lang.String" value="Highlight player position"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnPlayerPosActionPerformed"/>
@@ -70,6 +72,7 @@
     <Component class="javax.swing.JButton" name="btnSpawnChunk">
       <Properties>
         <Property name="text" type="java.lang.String" value="Highlight spawn chunk"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnSpawnChunkActionPerformed"/>
@@ -78,6 +81,7 @@
     <Component class="javax.swing.JButton" name="btnSearchChests">
       <Properties>
         <Property name="text" type="java.lang.String" value="Search chests ..."/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnSearchChestsActionPerformed"/>
@@ -86,6 +90,7 @@
     <Component class="javax.swing.JButton" name="btnLootChests">
       <Properties>
         <Property name="text" type="java.lang.String" value="Highlight loot chests"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnLootChestsActionPerformed"/>
@@ -94,6 +99,7 @@
     <Component class="javax.swing.JButton" name="btnTulpis">
       <Properties>
         <Property name="text" type="java.lang.String" value="Tulpis in Plains"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnTulpisActionPerformed"/>
