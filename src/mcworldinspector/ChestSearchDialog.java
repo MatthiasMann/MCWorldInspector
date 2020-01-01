@@ -22,6 +22,7 @@ public class ChestSearchDialog extends javax.swing.JDialog {
                 btnOk.setEnabled(!tfItem.getText().isEmpty());
             }
         });
+        getRootPane().setDefaultButton(btnOk);
     }
 
     public void installAutoCompletion(List<String> items) {
@@ -33,6 +34,10 @@ public class ChestSearchDialog extends javax.swing.JDialog {
     }
 
     public boolean run() {
+        final String text = tfItem.getText();
+        final int idx = text.indexOf(':');
+        tfItem.setSelectionStart(idx + 1);
+        tfItem.setSelectionEnd(text.length());
         ok = false;
         setVisible(true);
         return ok;
@@ -60,6 +65,11 @@ public class ChestSearchDialog extends javax.swing.JDialog {
         jLabel1.setText("Item");
 
         tfItem.setText("minecraft:potato");
+        tfItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                tfItemActionPerformed(evt);
+            }
+        });
 
         btnOk.setText("Ok");
         btnOk.addActionListener(new java.awt.event.ActionListener() {
@@ -118,6 +128,13 @@ public class ChestSearchDialog extends javax.swing.JDialog {
     private void btnCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCancelActionPerformed
         dispose();
     }//GEN-LAST:event_btnCancelActionPerformed
+
+    private void tfItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tfItemActionPerformed
+        if(btnOk.isEnabled()) {
+            ok = true;
+            dispose();
+        }
+    }//GEN-LAST:event_tfItemActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
