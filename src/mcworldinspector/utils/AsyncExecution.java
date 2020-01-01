@@ -42,6 +42,8 @@ public @FunctionalInterface interface AsyncExecution<R> {
                 executor.execute(() -> {
                     final Expected result = Expected.wrapAsync(task);
                     synchronized (results) {
+                        if(results.isEmpty())
+                            results.ensureCapacity(pending.get());
                         results.add(result);
                     }
                     pending.decrement();
