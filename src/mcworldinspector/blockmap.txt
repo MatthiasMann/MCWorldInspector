@@ -60,7 +60,6 @@ CFC29D minecraft:birch_trapdoor
 735531 structurize:up_gated_jungle_spruce_timber_frame
 DAE0A2 minecraft:end_stone_brick_slab
 C5B076 minecraft:stripped_birch_wood
-696A69 minecraft:dark_oak_leaves
 A2834F structurize:framed_dark_oak_oak_timber_frame
 735531 structurize:down_gated_dark_oak_spruce_timber_frame
 807F80 structurize:plain_jungle_cobble_stone_timber_frame
@@ -164,10 +163,8 @@ E5E7E7 structurize:down_gated_birch_paper_timber_frame
 432B14 minecraft:dark_oak_fence_gate
 432B14 minecraft:dark_oak_stairs
 0F1903 minecraft:lime_stained_glass_pane
-009300 minecraft:grass_block
 4C532A minecraft:green_terracotta
 C154B9 minecraft:magenta_concrete_powder
-0000B1 minecraft:water
 B5621F minecraft:smooth_red_sandstone_stairs
 848786 minecraft:polished_andesite
 A2834F minecraft:oak_wall_sign
@@ -218,7 +215,6 @@ A85A32 structurize:down_gated_birch_acacia_timber_frame
 19191E minecraft:black_shulker_box
 A6A2A0 minecraft:comparator
 A2834F minecraft:oak_stairs
-7E7E7E minecraft:grass
 83A193 minecraft:chain_command_block
 7E7E7E structurize:one_crossed_rl_acacia_stone_timber_frame
 535555 structurize:light_gray_clay_acacia_shingle
@@ -375,7 +371,6 @@ BABD85 structurize:one_crossed_rl_spruce_cactus_timber_frame
 432B14 structurize:horizontal_plain_acacia_dark_oak_timber_frame
 432B14 structurize:side_framed_horizontal_jungle_dark_oak_timber_frame
 684750 structurize:pink_clay_cactus_shingle
-6D6B64 minecraft:jungle_leaves
 E5E7E7 structurize:framed_birch_paper_timber_frame
 7E7E7E structurize:side_framed_horizontal_cactus_stone_timber_frame
 7E7E7E structurize:side_framed_spruce_stone_timber_frame
@@ -461,6 +456,7 @@ A2834F structurize:one_crossed_rl_spruce_oak_timber_frame
 1E1D1D structurize:black_clay_birch_shingle
 684750 structurize:pink_clay_acacia_shingle
 807F80 structurize:side_framed_oak_cobble_stone_timber_frame
+7E7E7E #1minecraft:grass
 432B14 minecraft:dark_oak_slab
 A2834F structurize:framed_spruce_oak_timber_frame
 C67718 minecraft:pumpkin
@@ -612,6 +608,7 @@ E5E7E7 structurize:one_crossed_rl_jungle_paper_timber_frame
 807F80 minecraft:cobblestone_wall
 C1C1C3 minecraft:polished_diorite
 030703 minecraft:carrots
+616161 #2minecraft:oak_leaves
 CBC5BA minecraft:mushroom_stem
 A85A32 structurize:double_crossed_birch_acacia_timber_frame
 A68B0C minecraft:hay_block
@@ -695,7 +692,6 @@ D2CEB3 minecraft:bone_block
 362920 structurize:brown_clay_shingle_slab
 1C1C06 minecraft:yellow_stained_glass_pane
 B63C35 minecraft:red_glazed_terracotta
-B3B3B3 minecraft:fern
 735531 structurize:framed_spruce_spruce_timber_frame
 A2834F minecraft:black_bed
 562543 minecraft:brain_coral
@@ -704,7 +700,6 @@ ECE6DF minecraft:quartz_stairs
 C0AF79 structurize:framed_birch_birch_timber_frame
 909A6E structurize:blockcactustrapdoor
 554251 structurize:purple_slate_cactus_shingle
-616161 minecraft:oak_leaves
 807F80 structurize:framed_spruce_cobble_stone_timber_frame
 513E33 minecraft:skeleton_wall_skull
 45295E structurize:purple_clay_shingle_slab
@@ -730,6 +725,7 @@ A2834F minecraft:cyan_banner
 A85A32 minecraft:acacia_sign
 E5E7E7 structurize:framed_jungle_paper_timber_frame
 605A20 structurize:yellow_clay_cactus_shingle
+696A69 #2minecraft:dark_oak_leaves
 7E7E7E minecraft:infested_stone
 432B14 structurize:one_crossed_rl_jungle_dark_oak_timber_frame
 6F452A structurize:orange_clay_dark_oak_shingle
@@ -917,6 +913,7 @@ E5E7E7 structurize:one_crossed_rl_spruce_paper_timber_frame
 77563B minecraft:coarse_dirt
 E5E7E7 structurize:one_crossed_lr_jungle_paper_timber_frame
 34777D minecraft:cyan_glazed_terracotta
+B1B1B1 #3minecraft:water
 1A2310 minecraft:potted_orange_tulip
 BABD85 structurize:one_crossed_lr_oak_cactus_timber_frame
 A07351 structurize:down_gated_oak_jungle_timber_frame
@@ -928,7 +925,6 @@ E5E7E7 structurize:side_framed_dark_oak_paper_timber_frame
 7C7672 minecraft:dead_brain_coral_block
 C0AF79 structurize:one_crossed_rl_jungle_birch_timber_frame
 432B14 structurize:one_crossed_rl_dark_oak_dark_oak_timber_frame
-565656 minecraft:acacia_leaves
 ECE6DF minecraft:quartz_slab
 A07351 structurize:up_gated_birch_jungle_timber_frame
 C0AF79 structurize:framed_acacia_birch_timber_frame
@@ -953,6 +949,7 @@ A2834F structurize:horizontal_plain_cactus_oak_timber_frame
 C0AF79 structurize:side_framed_birch_birch_timber_frame
 432B14 structurize:down_gated_cactus_dark_oak_timber_frame
 807F80 structurize:down_gated_birch_cobble_stone_timber_frame
+6D6B64 #2minecraft:jungle_leaves
 6E3098 minecraft:purple_glazed_terracotta
 735531 structurize:horizontal_plain_oak_spruce_timber_frame
 E5E7E7 structurize:up_gated_spruce_paper_timber_frame
@@ -1087,7 +1084,6 @@ C0AF79 structurize:horizontal_plain_birch_birch_timber_frame
 555351 minecraft:smoker
 A2834F structurize:one_crossed_lr_dark_oak_oak_timber_frame
 23284E structurize:blue_clay_birch_shingle
-AAAAAA minecraft:large_fern
 A2834F structurize:double_crossed_dark_oak_oak_timber_frame
 2C161A minecraft:nether_brick_fence
 432B14 structurize:up_gated_cactus_dark_oak_timber_frame
@@ -1111,6 +1107,7 @@ A85A32 minecraft:acacia_button
 46352D minecraft:activator_rail
 A2834F minecraft:oak_pressure_plate
 A85A32 structurize:one_crossed_lr_spruce_acacia_timber_frame
+AAAAAA #1minecraft:large_fern
 807F80 structurize:side_framed_cactus_cobble_stone_timber_frame
 A2834F structurize:one_crossed_rl_birch_oak_timber_frame
 19202B minecraft:spawner
@@ -1294,6 +1291,7 @@ A2834F structurize:plain_dark_oak_oak_timber_frame
 B5621F minecraft:smooth_red_sandstone
 1D0F14 minecraft:pink_stained_glass_pane
 7E7E7E structurize:side_framed_horizontal_jungle_stone_timber_frame
+B3B3B3 #1minecraft:fern
 CAC8C6 minecraft:dead_tube_coral_fan
 A07351 minecraft:jungle_stairs
 473F32 minecraft:rail
@@ -1427,6 +1425,7 @@ BABD85 structurize:double_crossed_oak_cactus_timber_frame
 EBE6DF minecraft:quartz_pillar
 C0AF79 structurize:side_framed_horizontal_birch_birch_timber_frame
 A07351 structurize:up_gated_jungle_jungle_timber_frame
+939393 #1minecraft:grass_block
 A85A32 minecraft:acacia_stairs
 BABD85 structurize:plain_cactus_cactus_timber_frame
 A85A32 structurize:down_gated_acacia_acacia_timber_frame
@@ -1458,6 +1457,7 @@ A2834F structurize:up_gated_birch_oak_timber_frame
 A07351 structurize:side_framed_horizontal_spruce_jungle_timber_frame
 7E7E7E structurize:up_gated_spruce_stone_timber_frame
 A85A32 structurize:side_framed_horizontal_cactus_acacia_timber_frame
+5E5E5E #1minecraft:tall_grass
 1D1D0D minecraft:cocoa
 A2834F structurize:up_gated_oak_oak_timber_frame
 432B14 structurize:one_crossed_rl_birch_dark_oak_timber_frame
@@ -1546,6 +1546,7 @@ A85A32 structurize:side_framed_horizontal_birch_acacia_timber_frame
 101010 minecraft:coal_block
 E5E7E7 structurize:one_crossed_lr_dark_oak_paper_timber_frame
 F1AF15 minecraft:yellow_concrete
+565656 #2minecraft:acacia_leaves
 A2834F structurize:side_framed_horizontal_cactus_oak_timber_frame
 8EB4FA minecraft:packed_ice
 A85A32 structurize:up_gated_spruce_acacia_timber_frame
@@ -1567,7 +1568,6 @@ A2834F structurize:double_crossed_birch_oak_timber_frame
 C0AF79 structurize:side_framed_horizontal_acacia_birch_timber_frame
 432B14 minecraft:dark_oak_planks
 C0AF79 structurize:side_framed_horizontal_oak_birch_timber_frame
-5E5E5E minecraft:tall_grass
 554251 structurize:purple_slate_oak_shingle
 A07351 structurize:one_crossed_rl_jungle_jungle_timber_frame
 E5E7E7 structurize:one_crossed_lr_oak_paper_timber_frame

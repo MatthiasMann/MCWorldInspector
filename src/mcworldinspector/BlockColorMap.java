@@ -20,31 +20,32 @@ public class BlockColorMap {
     
     public static class BlockColorInfo {
         public final int color;
-        public final boolean tinting;
+        public final int tinting;
 
-        public BlockColorInfo(int color, boolean tinting) {
+        public BlockColorInfo(int color, int tinting) {
             this.color = color;
             this.tinting = tinting;
         }
     }
     
     public static class MappedBlockPalette {
-        public static final MappedBlockPalette EMPTY = new MappedBlockPalette(0);
+        public static final MappedBlockPalette EMPTY =
+                new MappedBlockPalette(new int[0], new byte[0]);
 
         private final int[] colors;
-        private final BitSet tinting;
+        private final byte[] tinting;
 
-        private MappedBlockPalette(int size) {
-            this.colors = new int[size];
-            this.tinting = new BitSet(size);
+        private MappedBlockPalette(int[] colors, byte[] tinting) {
+            this.colors = colors;
+            this.tinting = tinting;
         }
         
         public int getColor(int index) {
             return (index < colors.length) ? colors[index] : 0;
         }
         
-        public boolean needsTinting(int index) {
-            return tinting.get(index);
+        public int getTinting(int index) {
+            return (index < tinting.length) ? tinting[index] & 255 : 0;
         }
     }
 
@@ -61,18 +62,18 @@ public class BlockColorMap {
     }
 
     public MappedBlockPalette map(NBTTagList<NBTTagCompound> palette) {
-        MappedBlockPalette m = new MappedBlockPalette(palette.size());
+        final int[] colors = new int[palette.size()];
+        final byte[] tinting = new byte[palette.size()];
         for(int idx=0 ; idx<palette.size() ; ++idx) {
             NBTTagCompound block = palette.get(idx);
             String name = block.getString("Name");
             BlockColorInfo bci = blocks.get(name);
             if(bci != null) {
-                m.colors[idx] = bci.color;
-                if(bci.tinting)
-                    m.tinting.set(idx);
+                colors[idx] = bci.color;
+                tinting[idx] = (byte)bci.tinting;
             }
         }
-        return m;
+        return new MappedBlockPalette(colors, tinting);
     }
 
     public static BlockColorMap load(InputStream is) throws IOException {
@@ -85,8 +86,9 @@ public class BlockColorMap {
                 try {
                     int color = Integer.parseInt(line.substring(0, 6), 16);
                     color |= 0xFF000000;    // set alpha to opaque
-                    boolean tinting = line.charAt(7) == '#';
-                    String name = line.substring(tinting ? 8 : 7);
+                    boolean hasTinting = line.charAt(7) == '#';
+                    int tinting = hasTinting ? line.charAt(8) - '0' : 0;
+                    String name = line.substring(hasTinting ? 9 : 7);
                     bcm.blocks.put(name, new BlockColorInfo(color, tinting));
                 } catch(IllegalArgumentException ex) {
                 }

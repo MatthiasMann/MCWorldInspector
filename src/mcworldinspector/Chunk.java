@@ -78,11 +78,15 @@ public class Chunk extends XZPosition {
         return level.get("Biomes", NBTIntArray.class);
     }
     
-    public Biome getBiome(int x, int z, Map<Integer, Biome> biomeRegistry) {
+    public Biome getBiome(int xz, Map<Integer, Biome> biomeRegistry) {
         final NBTIntArray biomes = getBiomes();
         if(biomes != null && biomes.size() == 256)
-            return biomeRegistry.get(biomes.getInt(z*16 + x));
+            return biomeRegistry.get(biomes.getInt(xz));
         return null;
+    }
+
+    public Biome getBiome(int x, int z, Map<Integer, Biome> biomeRegistry) {
+        return getBiome(z*16 + x, biomeRegistry);
     }
 
     public static @FunctionalInterface interface WrapBlock<R> {

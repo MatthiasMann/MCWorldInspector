@@ -89,18 +89,32 @@ public class ColorPaletteGenerator implements Closeable {
 
         final HashMap<String, Color> result = new HashMap<>();
         blockStates.entrySet().stream().forEach(e -> {
-            final String block = e.getKey();
+            String block = e.getKey();
             int idx = block.indexOf(':');
             String ns = block.substring(0, idx);
             Color color = processBlockState(ns, e.getValue());
             if(color != null) {
                 // apply "tinting" to special blocks
-                if(block.equals("minecraft:grass_block")) {
-                    color = new Color(0, color.getGreen(), 0);
-                } else if(block.equals("minecraft:water")) {
-                    color = new Color(0, 0, color.getBlue());
-                } else if(block.endsWith("_leaves")) {
-                    color = new Color(0, color.getGreen(), 0);
+                switch (block) {
+                    case "minecraft:grass_block":
+                    case "minecraft:grass":
+                    case "minecraft:fern":
+                    case "minecraft:vines":
+                    case "minecraft:tall_grass":
+                    case "minecraft:large_fern":
+                        block = "#1" + block;
+                        break;
+                    case "minecraft:oak_leaves":
+                    case "minecraft:dark_oak_leaves":
+                    case "minecraft:acacia_leaves":
+                    case "minecraft:jungle_leaves":
+                        block = "#2" + block;
+                        break;
+                    case "minecraft:water":
+                        block = "#3" + block;
+                        break;
+                    default:
+                        break;
                 }
                 result.put(block, color);
             }

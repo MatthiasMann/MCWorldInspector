@@ -303,7 +303,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 case UNDERGROUND: {
                     final int layer = renderOptionsPanel.getLayer();
                     renderer.startChunkRendering(
-                            (c, u) -> WorldRenderer.renderChunkLayer(c, layer));
+                            (c,br,u) -> WorldRenderer.renderChunkLayer(c, br, layer));
                 }
             }
             if(lastMousePos != null)

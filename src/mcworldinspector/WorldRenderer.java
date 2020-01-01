@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -93,7 +94,7 @@ public class WorldRenderer extends JComponent {
     }
 
     public static @FunctionalInterface interface ChunkRenderer {
-        int[] render(Chunk chunk, int[] prevY);
+        int[] render(Chunk chunk, Map<Integer, Biome> biomeRegistry, int[] prevY);
     }
 
     public void setBlockColorMap(BlockColorMap bcm) {
@@ -118,6 +119,7 @@ public class WorldRenderer extends JComponent {
             }).forEachOrdered(e -> executor.submit(() -> {
                 if(generation != asyncRenderingGeneration.get())
                     return;
+                final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
                 BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
                 final ArrayList<Chunk> chunks = e.getValue();
                 chunks.sort((a,b) -> {
@@ -143,7 +145,7 @@ public class WorldRenderer extends JComponent {
                     }
                     img.getRaster().setDataElements(
                         chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
-                            chunkRenderer.render(chunk, prevY));
+                            chunkRenderer.render(chunk, biomeRegistry, prevY));
                     prevX = chunk.getLocalX();
                     prevZ = chunk.getLocalZ();
                 }
@@ -243,7 +245,7 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    public static int[] renderChunk(Chunk chunk, int[] prevY) {
+    public static int[] renderChunk(Chunk chunk, Map<Integer, Biome> biomeRegistry, int[] prevY) {
         final NBTLongArray heightmap = chunk.getHeightmap();
         final int[] data = new int[256];
         for(int idx=0 ; idx<256 ; idx++) {
@@ -252,8 +254,7 @@ public class WorldRenderer extends JComponent {
             if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
                 final int index = sc.getBlockIndex(idx, top);
                 if(index >= 0) {
-                    BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
-                    int color = mbc.getColor(index);
+                    int color = getBlockColor(sc, index, chunk, idx, biomeRegistry, top);
                     final int py = prevY[idx & 15];
                     if(py != top && py >= 0)
                         color = scaleRGB(color, (py < top)
@@ -267,11 +268,10 @@ public class WorldRenderer extends JComponent {
         return data;
     }
 
-    public static int[] renderChunkLayer(Chunk chunk, int layer) {
+    public static int[] renderChunkLayer(Chunk chunk, Map<Integer, Biome> biomeRegistry, int layer) {
         final int[] data = new int[256];
         chunk.forEachCaveFloorBlock(layer, (xz,y,sc,index) -> {
-            BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
-            int color = mbc.getColor(index);
+            int color = getBlockColor(sc, index, chunk, xz, biomeRegistry, y);
             data[xz] = color;
             return null;
         });
@@ -290,6 +290,44 @@ public class WorldRenderer extends JComponent {
         g = Math.min(255, (g * scale) >> COLOR_CHANGE_SHIFT);
         b = Math.min(255, (b * scale) >> COLOR_CHANGE_SHIFT);
         return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
+    }
+
+    private static int getBlockColor(SubChunk sc, final int index, Chunk chunk, int idx, Map<Integer, Biome> biomeRegistry, final int top) {
+        BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
+        int color = mbc.getColor(index);
+        int tinting = mbc.getTinting(index);
+        if(tinting > 0)
+            color = adjustColorByBiome(chunk, idx, biomeRegistry, top, tinting, color);
+        return color;
+    }
+
+    private static int adjustColorByBiome(Chunk chunk, int xz, Map<Integer, Biome> biomeRegistry, int y, int tinting, int color) {
+        Biome biome = chunk.getBiome(xz, biomeRegistry);
+        if(biome == null)
+            biome = Biome.UNKNOWN;
+        int elevation = Math.max(0, y - 64);
+        int biomeColor;
+        switch (tinting) {
+            case 1:
+                biomeColor = biome.computeBiomeGrassColor(elevation);
+                break;
+            case 2:
+                biomeColor = biome.computeBiomeFoilageColor(elevation);
+                break;
+            case 3:
+                biomeColor = biome.waterColor;
+                break;
+            default:
+                throw new AssertionError();
+        }
+        return mulColor(color, biomeColor);
+    }
+
+    private static int mulColor(int colorA, int colorB) {
+        return (colorA & 0xFF000000) |
+                ((((colorA >> 16) & 0xFF) * ((colorB >> 16) & 0xFF) / 255) << 16) |
+                ((((colorA >>  8) & 0xFF) * ((colorB >>  8) & 0xFF) / 255) <<  8) |
+                ((((colorA      ) & 0xFF) * ((colorB      ) & 0xFF) / 255)      );
     }
 
     public static interface HighlightSelector extends Function<World, Stream<? extends HighlightEntry>> {
