@@ -29,7 +29,7 @@ public class StatusBar extends JPanel {
             firstRightAligned++;
 
         final GroupLayout.ParallelGroup vertical = layout.createParallelGroup(
-                GroupLayout.Alignment.LEADING);
+                GroupLayout.Alignment.BASELINE);
         final GroupLayout.SequentialGroup horizontal = layout.createSequentialGroup();
         elements.forEach(new Consumer<Element>() {
             Alignment prev = Alignment.LEFT;
