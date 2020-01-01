@@ -424,6 +424,7 @@ A2834F minecraft:gray_wall_banner
 807F80 minecraft:cobblestone_stairs
 7E7E7E structurize:framed_birch_stone_timber_frame
 130C05 minecraft:poppy
+B1B1B1 #3minecraft:bubble_column
 D8DDDD minecraft:white_shulker_box
 273126 minecraft:potted_azure_bluet
 1A270D minecraft:potted_dark_oak_sapling
@@ -1432,7 +1433,6 @@ A85A32 structurize:down_gated_acacia_acacia_timber_frame
 554419 minecraft:jungle_wood
 A2834F minecraft:cyan_wall_banner
 735531 structurize:plain_birch_spruce_timber_frame
-B1B1B1 minecraft:bubble_column
 A07351 structurize:side_framed_acacia_jungle_timber_frame
 7E7E7E structurize:plain_birch_stone_timber_frame
 807F80 structurize:horizontal_plain_oak_cobble_stone_timber_frame

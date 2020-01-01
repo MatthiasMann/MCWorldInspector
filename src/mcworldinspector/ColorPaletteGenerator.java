@@ -111,6 +111,7 @@ public class ColorPaletteGenerator implements Closeable {
                         block = "#2" + block;
                         break;
                     case "minecraft:water":
+                    case "minecraft:bubble_column":
                         block = "#3" + block;
                         break;
                     default:

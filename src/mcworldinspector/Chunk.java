@@ -126,16 +126,16 @@ public class Chunk extends XZPosition {
         return getTopBlock(z*16 + x, makeBlockInfo());
     }
 
-    public boolean isAir(int xz, int y) {
+    public byte getBlockType(int xz, int y) {
         final SubChunk sc = subchunks[y >> 4];
-        return (sc == null) || sc.isAir(xz, y);
+        return (sc == null) ? SubChunk.AIR : sc.getBlockType(xz, y);
     }
 
-    public<R> R getTopBlockBelowLayer(int xz, int y, WrapBlock<R> wrap) {
+    public<R> R getTopBlockBelowLayer(int xz, int y, int ignoreMask, WrapBlock<R> wrap) {
         for(;;) {
             final SubChunk sc = subchunks[y >> 4];
             if(sc != null) {
-                final int index = sc.getTopBlockIndexBelowLayer(xz, y & 15);
+                final int index = sc.getTopBlockIndexBelowLayer(xz, y & 15, ignoreMask);
                 if(index >= 0)
                     return wrap.apply(xz, y, sc, index);
             }
@@ -146,8 +146,12 @@ public class Chunk extends XZPosition {
     }
 
     public<R> R getCaveFloorBlock(int xz, int layer, WrapBlock<R> wrap) {
-         return layer > 0 && isAir(xz, layer)
-                 ? getTopBlockBelowLayer(xz, layer - 1, wrap) : null;
+        if(layer <= 0)
+            return null;
+        byte blockType = getBlockType(xz, layer);
+        return (blockType != SubChunk.NORMAL)
+                 ? getTopBlockBelowLayer(xz, layer - 1,
+                         blockType | SubChunk.AIR, wrap) : null;
     }
 
     public<R> void forEachCaveFloorBlock(int layer, WrapBlock<R> wrap) {
@@ -157,22 +161,26 @@ public class Chunk extends XZPosition {
         if(scAirCheck != null) {
             if(layer <= 15) {
                 for(int idx=0 ; idx<256 ; idx++) {
-                    if(scAirCheck.isAir(idx, layer)) {
+                    byte blockType = scAirCheck.getBlockType(idx, layer);
+                    if(blockType != SubChunk.NORMAL) {
                         final int index = scAirCheck.
-                                getTopBlockIndexBelowLayer(idx, layer - 1);
+                                getTopBlockIndexBelowLayer(idx, layer - 1,
+                                        blockType | SubChunk.AIR);
                         if(index >= 0)
                             wrap.apply(idx, layer - 1, scAirCheck, index);
                     }
                 }
             } else {
                 for(int idx=0 ; idx<256 ; idx++) {
-                    if(scAirCheck.isAir(idx, layer))
-                        getTopBlockBelowLayer(idx, layer - 1, wrap);
+                    byte blockType = scAirCheck.getBlockType(idx, layer);
+                    if(blockType != SubChunk.NORMAL)
+                        getTopBlockBelowLayer(idx, layer - 1,
+                                blockType | SubChunk.AIR, wrap);
                 }
             }
         } else if(layer >= 16) {
             for(int idx=0 ; idx<256 ; idx++)
-                getTopBlockBelowLayer(idx, layer - 1, wrap);
+                getTopBlockBelowLayer(idx, layer - 1, SubChunk.AIR, wrap);
         }
     }
 

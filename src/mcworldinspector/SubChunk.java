@@ -14,32 +14,38 @@ import mcworldinspector.nbt.NBTTagList;
  * @author matthias
  */
 public class SubChunk {
-    
+
+    public static final byte NORMAL = 0;
+    public static final byte AIR = 1;
+    public static final byte WATER = 2;
+
     private final NBTTagList<NBTTagCompound> palette;
     private final NBTLongArray blockStates;
+    private final byte[] blockTypes;
     private final byte globalY;
     private final byte bits_per_blockstate;
-    private final byte air_index;
-    private final byte cave_air_index;
     private BlockColorMap.MappedBlockPalette mappedPalette = BlockColorMap.MappedBlockPalette.EMPTY;
 
     public SubChunk(NBTTagList<NBTTagCompound> palette, NBTLongArray blockStates, byte globalY) {
         this.palette = palette;
         this.blockStates = blockStates;
+        this.blockTypes = new byte[palette.size()];
         this.bits_per_blockstate = (byte)Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size()-1));
         this.globalY = globalY;
 
-        byte tmp_air_index = -1;
-        byte tmp_cave_air_index = -1;
         for(int idx=0 ; idx<palette.size() ; ++idx) {
             String name = palette.get(idx).getString("Name");
-            if("minecraft:cave_air".equals(name))
-                tmp_cave_air_index = (byte)idx;
-            if("minecraft:air".equals(name))
-                tmp_air_index = (byte)idx;
+            switch (name) {
+                case "minecraft:cave_air":
+                case "minecraft:air":
+                    blockTypes[idx] = AIR;
+                    break;
+                case "minecraft:water":
+                case "minecraft:bubble_column":
+                    blockTypes[idx] = WATER;
+                    break;
+            }
         }
-        this.air_index = tmp_air_index;
-        this.cave_air_index = tmp_cave_air_index;
     }
 
     public int getGlobalY() {
@@ -59,17 +65,20 @@ public class SubChunk {
         return (index >= 0 && index < palette.size()) ? palette.get(index) : null;
     }
 
-    public boolean isAir(int xz, int y) {
-        int index = getBlockIndex(xz, y);
-        return index == air_index || index == cave_air_index;
+    public byte getBlockType(int index) {
+        return (index >= 0 && index < blockTypes.length) ? blockTypes[index] : NORMAL;
     }
 
-    public int getTopBlockIndexBelowLayer(int xz, int y) {
+    public byte getBlockType(int xz, int y) {
+        return getBlockType(getBlockIndex(xz, y));
+    }
+
+    public int getTopBlockIndexBelowLayer(int xz, int y, int ignoreMask) {
         final int bits = bits_per_blockstate & 255;
         final NBTLongArray bs = blockStates;
         do {
             final int index = bs.getBits((y * 256 + xz) * bits, bits);
-            if(index != air_index && index != cave_air_index)
+            if((getBlockType(index) & ignoreMask) == 0)
                 return index;
         } while (y-- > 0);
         return -1;
