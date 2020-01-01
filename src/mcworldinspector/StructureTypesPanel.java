@@ -20,7 +20,7 @@ import mcworldinspector.utils.AsyncExecution;
  */
 public class StructureTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
-    private Set<String> structureTypes = Collections.EMPTY_SET;
+    private Set<String> structureTypes = Collections.emptySet();
 
     public StructureTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
@@ -29,7 +29,7 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void reset() {
-        structureTypes = Collections.EMPTY_SET;
+        structureTypes = Collections.emptySet();
         buildListModel();
     }
 

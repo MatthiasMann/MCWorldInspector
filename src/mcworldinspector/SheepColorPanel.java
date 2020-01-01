@@ -22,7 +22,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
     public static final String MINECRAFT_SHEEP = "minecraft:sheep";
 
     private final ExecutorService executorService;
-    private Set<MCColor> colors = Collections.EMPTY_SET;
+    private Set<MCColor> colors = Collections.emptySet();
 
     public SheepColorPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
@@ -31,7 +31,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
 
     @Override
     public void reset() {
-        colors = Collections.EMPTY_SET;
+        colors = Collections.emptySet();
         buildListModel();
     }
 

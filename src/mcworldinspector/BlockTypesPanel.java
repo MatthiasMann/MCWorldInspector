@@ -30,7 +30,7 @@ import mcworldinspector.utils.MapTreeModel;
  */
 public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
-    private Set<String> blockTypes = Collections.EMPTY_SET;
+    private Set<String> blockTypes = Collections.emptySet();
 
     public BlockTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
@@ -39,7 +39,7 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void reset() {
-        blockTypes = Collections.EMPTY_SET;
+        blockTypes = Collections.emptySet();
         buildListModel();
     }
 

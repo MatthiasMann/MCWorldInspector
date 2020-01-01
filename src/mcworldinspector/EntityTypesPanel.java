@@ -20,7 +20,7 @@ import mcworldinspector.utils.AsyncExecution;
  */
 public class EntityTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
-    private Set<String> entities = Collections.EMPTY_SET;
+    private Set<String> entities = Collections.emptySet();
 
     public EntityTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
@@ -29,7 +29,7 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void reset() {
-        entities = Collections.EMPTY_SET;
+        entities = Collections.emptySet();
         buildListModel();
     }
 

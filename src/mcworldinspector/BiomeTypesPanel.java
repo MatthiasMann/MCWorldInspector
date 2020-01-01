@@ -18,7 +18,7 @@ import mcworldinspector.utils.AsyncExecution;
 public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     private final ExecutorService executorService;
     private World world;
-    private Set<Biome> biomes = Collections.EMPTY_SET;
+    private Set<Biome> biomes = Collections.emptySet();
 
     public BiomeTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);

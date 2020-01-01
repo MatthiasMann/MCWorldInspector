@@ -23,7 +23,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
     public static final String MINECRAFT_VILLAGER = "minecraft:villager";
 
     private final ExecutorService executorService;
-    private Set<String> professions = Collections.EMPTY_SET;
+    private Set<String> professions = Collections.emptySet();
 
     public VillagerPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
@@ -32,7 +32,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
 
     @Override
     public void reset() {
-        professions = Collections.EMPTY_SET;
+        professions = Collections.emptySet();
         buildListModel();
     }
 
