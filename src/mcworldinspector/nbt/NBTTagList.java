@@ -23,6 +23,7 @@ public class NBTTagList<T> extends NBTArray<T> {
     final Class type;
     final T[] entries;
 
+    @SuppressWarnings("unchecked")
     NBTTagList(Class type, Object[] entries) {
         this.type = type;
         this.entries = (T[])entries;
@@ -80,7 +81,8 @@ public class NBTTagList<T> extends NBTArray<T> {
     public String toString() {
         return Arrays.toString(entries);
     }
-    
+
+    @SuppressWarnings("unchecked")
     public<U> NBTTagList<U> as(Class<U> type) {
         return this.type.equals(type) ? (NBTTagList<U>)this : EMPTY;
     }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -16,7 +17,6 @@ import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import mcworldinspector.utils.FileHelpers;
-import static java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collection;
 
 /**
@@ -80,6 +80,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         return (o instanceof NBTTagCompound) ? (NBTTagCompound)o : EMPTY;
     }
 
+    @SuppressWarnings("unchecked")
     public<U> NBTTagList<U> getList(String name, Class<U> type) {
         Object o = get(name);
         return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : NBTTagList.EMPTY;
@@ -136,7 +137,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
                 int tagid = data.get();
                 int len = data.getInt();
                 switch (tagid) {
-                    case 0: return null;
+                    case 0: return NBTTagList.EMPTY;
                     case 1: return slice(data, len, NBTByteArray::new);
                     case 2: return new NBTShortArray(slice(data, len*2, ByteBuffer::asShortBuffer));
                     case 3: return new NBTIntArray(slice(data, len*4, ByteBuffer::asIntBuffer));
@@ -168,25 +169,25 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
                 // many NBTTagCompound have only 2 entries (~25%)
                 if((tagid=data.get()) == 0)
                     return new Small(
-                            new SimpleImmutableEntry<>(name0, value0),
-                            new SimpleImmutableEntry<>(name1, value1));
+                            new Small.Entry(name0, value0),
+                            new Small.Entry(name1, value1));
                 final String name2 = readUTF8(data).intern();
                 final Object value2 = parseNBTValue(data, tagid);
                 // keep using Small for up to 4 entries
                 if((tagid=data.get()) == 0)
                     return new Small(
-                            new SimpleImmutableEntry<>(name0, value0),
-                            new SimpleImmutableEntry<>(name1, value1),
-                            new SimpleImmutableEntry<>(name2, value2));
+                            new Small.Entry(name0, value0),
+                            new Small.Entry(name1, value1),
+                            new Small.Entry(name2, value2));
                 final String name3 = readUTF8(data).intern();
                 final Object value3 = parseNBTValue(data, tagid);
                 // keep using Small for up to 4 entries
                 if((tagid=data.get()) == 0)
                     return new Small(
-                            new SimpleImmutableEntry<>(name0, value0),
-                            new SimpleImmutableEntry<>(name1, value1),
-                            new SimpleImmutableEntry<>(name2, value2),
-                            new SimpleImmutableEntry<>(name3, value3));
+                            new Small.Entry(name0, value0),
+                            new Small.Entry(name1, value1),
+                            new Small.Entry(name2, value2),
+                            new Small.Entry(name3, value3));
                 final IdentityHashMap<String, Object> map = new IdentityHashMap<>(16);
                 map.put(name0, value0);
                 map.put(name1, value1);
@@ -239,7 +240,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
     }
 
-    static class Empty extends NBTTagCompound {
+    public static class Empty extends NBTTagCompound {
         @Override
         public Object get(String name) {
             return null;
@@ -262,7 +263,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
     }
 
-    static class Single extends NBTTagCompound implements Map.Entry<String, Object> {
+    public static class Single extends NBTTagCompound implements Map.Entry<String, Object> {
         private final String key;
         private final Object value;
 
@@ -324,16 +325,22 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
     }
 
-    static class Small extends NBTTagCompound implements Set<Map.Entry<String, Object>> {
-        private final SimpleImmutableEntry<String, Object>[] entries;
+    public static class Small extends NBTTagCompound implements Set<Map.Entry<String, Object>> {
+        static final class Entry extends AbstractMap.SimpleImmutableEntry<String, Object> {
+            Entry(String key, Object value) {
+                super(key, value);
+            }
+        }
 
-        Small(SimpleImmutableEntry<String, Object>... entries) {
+        private final Entry[] entries;
+
+        Small(Entry... entries) {
             this.entries = entries;
         }
 
         @Override
         public Object get(String name) {
-            for(SimpleImmutableEntry<String, Object> e : entries) {
+            for(Entry e : entries) {
                 if(e.getKey().equals(name))
                     return e.getValue();
             }
@@ -351,8 +358,14 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
 
         @Override
+        @SuppressWarnings("unchecked")
+        public Iterator<Map.Entry<String, Object>> iterator() {
+            return (Iterator)Arrays.asList(entries).iterator();
+        }
+
+        @Override
         public Stream<Object> values() {
-            return Stream.of(entries).map(SimpleImmutableEntry::getValue);
+            return Stream.of(entries).map(Entry::getValue);
         }
 
         @Override
@@ -366,6 +379,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public <T> T[] toArray(T[] a) {
             int size = entries.length;
             if (a.length < size)
@@ -412,7 +426,7 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
     }
 
-    static class Large extends NBTTagCompound {
+    public static class Large extends NBTTagCompound {
         private final IdentityHashMap<String, Object> map;
 
         Large(IdentityHashMap<String, Object> map) {

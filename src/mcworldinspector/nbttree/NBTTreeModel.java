@@ -316,7 +316,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     public static class Node {
-        private List<Node> children = Collections.EMPTY_LIST;
+        private List<Node> children = Collections.emptyList();
         final String label;
         TextWithIcon value;
         Icon icon;
@@ -354,7 +354,10 @@ public class NBTTreeModel extends AbstractTreeTableModel {
             ICONS.put(NBTDoubleArray.class, NBT_INT_ARRAY);
             ICONS.put(NBTTagList.class, NBT_LIST);
             ICONS.put(String.class, NBT_STRING);
-            ICONS.put(NBTTagCompound.class, NBT_COMPOUND);
+            ICONS.put(NBTTagCompound.Empty.class, NBT_COMPOUND);
+            ICONS.put(NBTTagCompound.Single.class, NBT_COMPOUND);
+            ICONS.put(NBTTagCompound.Small.class, NBT_COMPOUND);
+            ICONS.put(NBTTagCompound.Large.class, NBT_COMPOUND);
         }
 
         Node(String label, Icon icon) {
