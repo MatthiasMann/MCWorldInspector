@@ -18,15 +18,17 @@ import mcworldinspector.nbt.NBTTagList;
  * @author matthias
  */
 public class Chunk extends XZPosition {
-    
+
+    private static final String HEIGHTMAPS = "Heightmaps";
+    private static final String HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES = "MOTION_BLOCKING_NO_LEAVES";
+    private static final String HEIGHTMAP_MOTION_BLOCKING = "MOTION_BLOCKING";
+
     private final NBTTagCompound level;
-    private final NBTLongArray heightmap;
     private final SubChunk[] subchunks = new SubChunk[16];
 
     public Chunk(int globalX, int globalZ, NBTTagCompound nbt) {
         super(globalX, globalZ);
         this.level = nbt.getCompound("Level");
-        this.heightmap = level.getCompound("Heightmaps").get("MOTION_BLOCKING_NO_LEAVES", NBTLongArray.class);
         for(NBTTagCompound s : level.getList("Sections", NBTTagCompound.class)) {
             int y = ((Number)s.get("Y")).intValue();
             NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
@@ -67,7 +69,10 @@ public class Chunk extends XZPosition {
     }
 
     public boolean isEmpty() {
-        return heightmap == null;
+        final NBTTagCompound heightmaps = level.getCompound(HEIGHTMAPS);
+        return heightmaps.isEmpty() ||
+                heightmaps.get(HEIGHTMAP_MOTION_BLOCKING, NBTLongArray.class) == null ||
+                heightmaps.get(HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES, NBTLongArray.class) == null;
     }
 
     public SubChunk getSubChunk(int y) {
@@ -99,31 +104,35 @@ public class Chunk extends XZPosition {
                 sc.getBlockFromPalette(index));
     }
 
-    public NBTLongArray getHeightmap() {
-        return heightmap;
+    public NBTLongArray getHeightmap(boolean withLeaves) {
+        final NBTTagCompound heightmaps = level.getCompound(HEIGHTMAPS);
+        return heightmaps.get(withLeaves ? HEIGHTMAP_MOTION_BLOCKING
+                : HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES, NBTLongArray.class);
     }
 
-    public void getHeights(int z, int[] heights) {
+    public static int getHeight(NBTLongArray heightmap, int xz) {
+        return heightmap.getBits(xz*9, 9);
+    }
+
+    public static void getHeights(NBTLongArray heightmap, int z, int[] heights) {
         int bitIdx = z * 16 * 9;
         for(int xx=0 ; xx<16 ; xx++, bitIdx += 9)
             heights[xx] = heightmap.getBits(bitIdx, 9) - 1;
     }
 
-    public<R> R getTopBlock(int xz, WrapBlock<R> wrap) {
-        if(heightmap != null) {
-            final int top = heightmap.getBits(xz*9, 9) - 1;
-            SubChunk sc;
-            if(top >= 0 && top < 256 && (sc = subchunks[top >> 4]) != null) {
-                final int index = sc.getBlockIndex(xz, top);
-                if(index >= 0)
-                    return wrap.apply(xz, top, sc, index);
-            }
+    public<R> R getTopBlock(NBTLongArray heightmap, int xz, WrapBlock<R> wrap) {
+        final int top = heightmap.getBits(xz*9, 9) - 1;
+        SubChunk sc;
+        if(top >= 0 && top < 256 && (sc = subchunks[top >> 4]) != null) {
+            final int index = sc.getBlockIndex(xz, top);
+            if(index >= 0)
+                return wrap.apply(xz, top, sc, index);
         }
         return null;
     }
 
-    public SubChunk.BlockInfo getTopBlockInfo(int x, int z) {
-        return getTopBlock(z*16 + x, makeBlockInfo());
+    public SubChunk.BlockInfo getTopBlockInfo(NBTLongArray heightmap, int x, int z) {
+        return getTopBlock(heightmap, z*16 + x, makeBlockInfo());
     }
 
     public byte getBlockType(int xz, int y) {

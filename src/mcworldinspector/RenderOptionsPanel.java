@@ -10,6 +10,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
     public static enum Mode {
         SURFACE,
+        SURFACE_NO_LEAVES,
         UNDERGROUND
     }
 
@@ -18,6 +19,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
         ChangeListener l = e -> cb.run();
         btnSurface.addChangeListener(l);
+        btnSurfaceNoLeaves.addChangeListener(l);
         btnUnderground.addChangeListener(l);
         sliderLayer.addChangeListener(e -> {
             updateLabel();
@@ -31,7 +33,9 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
     }
 
     public Mode getMode() {
-        return btnSurface.isSelected() ? Mode.SURFACE : Mode.UNDERGROUND;
+        return btnSurface.isSelected() ? Mode.SURFACE :
+                btnSurfaceNoLeaves.isSelected() ? Mode.SURFACE_NO_LEAVES :
+                Mode.UNDERGROUND;
     }
 
     public int getLayer() {
@@ -53,12 +57,16 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
         renderModeGroup = new javax.swing.ButtonGroup();
         btnSurface = new javax.swing.JRadioButton();
+        btnSurfaceNoLeaves = new javax.swing.JRadioButton();
         btnUnderground = new javax.swing.JRadioButton();
         sliderLayer = new javax.swing.JSlider();
 
         renderModeGroup.add(btnSurface);
         btnSurface.setSelected(true);
         btnSurface.setText("Surface");
+
+        renderModeGroup.add(btnSurfaceNoLeaves);
+        btnSurfaceNoLeaves.setText("Surface without leaves");
 
         renderModeGroup.add(btnUnderground);
         btnUnderground.setText("Underground");
@@ -81,13 +89,18 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(btnSurface)
                             .addComponent(btnUnderground))
-                        .addContainerGap(289, Short.MAX_VALUE))))
+                        .addContainerGap(289, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(btnSurfaceNoLeaves)
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(btnSurface)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnSurfaceNoLeaves)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnUnderground)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -99,6 +112,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JRadioButton btnSurface;
+    private javax.swing.JRadioButton btnSurfaceNoLeaves;
     private javax.swing.JRadioButton btnUnderground;
     private javax.swing.ButtonGroup renderModeGroup;
     private javax.swing.JSlider sliderLayer;

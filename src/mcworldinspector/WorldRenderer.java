@@ -95,7 +95,7 @@ public class WorldRenderer extends JComponent {
     }
 
     public static @FunctionalInterface interface ChunkRenderer {
-        int[] render(Chunk chunk, Map<Integer, Biome> biomeRegistry, int[] prevY);
+        public BufferedImage render(World world, ArrayList<Chunk> chunks);
     }
 
     public void setBlockColorMap(BlockColorMap bcm) {
@@ -120,36 +120,7 @@ public class WorldRenderer extends JComponent {
             }).forEachOrdered(e -> executor.execute(() -> {
                 if(generation != asyncRenderingGeneration.get())
                     return;
-                final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
-                BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
-                final ArrayList<Chunk> chunks = e.getValue();
-                chunks.sort((a,b) -> {
-                    int diff = a.getLocalX() - b.getLocalX();
-                    if(diff == 0)
-                        diff = a.getLocalZ() - b.getLocalZ();
-                    return diff;
-                });
-                int[] prevY = new int[16];
-                int prevX = -1;
-                int prevZ = 0;
-                for(Chunk chunk : chunks) {
-                    if(chunk.isEmpty())
-                        continue;
-                    if(prevX != chunk.getLocalX() || prevZ + 1 != chunk.getLocalZ()) {
-                        Chunk aboveChunk;
-                        if(chunk.getLocalZ() == 0 && (aboveChunk = world.getChunk(
-                                chunk.getGlobalX(), chunk.getGlobalZ() - 1)) != null &&
-                                !aboveChunk.isEmpty())
-                            aboveChunk.getHeights(15, prevY);
-                        else
-                            Arrays.fill(prevY, -1);
-                    }
-                    img.getRaster().setDataElements(
-                        chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
-                            chunkRenderer.render(chunk, biomeRegistry, prevY));
-                    prevX = chunk.getLocalX();
-                    prevZ = chunk.getLocalZ();
-                }
+                final BufferedImage img = chunkRenderer.render(world, e.getValue());
                 final XZPosition p = e.getKey();
                 EventQueue.invokeLater(() -> {
                     images.put(p, img);
@@ -157,6 +128,51 @@ public class WorldRenderer extends JComponent {
                 });
             }));
         });
+    }
+
+    public static BufferedImage renderChunksSurface(World world, ArrayList<Chunk> chunks, boolean withLeaves) {
+        chunks.sort((a,b) -> {
+            int diff = a.getLocalX() - b.getLocalX();
+            if(diff == 0)
+                diff = a.getLocalZ() - b.getLocalZ();
+            return diff;
+        });
+        final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
+        final BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
+        int[] prevY = new int[16];
+        int prevX = -1;
+        int prevZ = 0;
+        for(int chunkIdx=0,numChunks=chunks.size() ; chunkIdx<numChunks ; chunkIdx++) {
+            final Chunk chunk = chunks.get(chunkIdx);
+            assert(!chunk.isEmpty());
+            if(prevX != chunk.getLocalX() || prevZ + 1 != chunk.getLocalZ()) {
+                Chunk aboveChunk;
+                if(chunk.getLocalZ() == 0 && (aboveChunk = world.getChunk(
+                        chunk.getGlobalX(), chunk.getGlobalZ() - 1)) != null &&
+                        !aboveChunk.isEmpty())
+                    Chunk.getHeights(aboveChunk.getHeightmap(withLeaves), 15, prevY);
+                else
+                    Arrays.fill(prevY, -1);
+            }
+            img.getRaster().setDataElements(
+                    chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
+                    renderChunk(chunk, withLeaves, biomeRegistry, prevY));
+            prevX = chunk.getLocalX();
+            prevZ = chunk.getLocalZ();
+        }
+        return img;
+    }
+
+    public static BufferedImage renderChunksUnderground(World world, ArrayList<Chunk> chunks, int layer) {
+        final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
+        final BufferedImage img = new BufferedImage(32*16, 32*16, BufferedImage.TYPE_INT_ARGB);
+        chunks.forEach(chunk-> {
+            assert(!chunk.isEmpty());
+            img.getRaster().setDataElements(
+                    chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
+                    renderChunkLayer(chunk, biomeRegistry, layer));
+        });
+        return img;
     }
 
     public SimpleListModel<HighlightEntry> getHighlightsModel() {
@@ -246,12 +262,12 @@ public class WorldRenderer extends JComponent {
         }
     }
 
-    public static int[] renderChunk(Chunk chunk, Map<Integer, Biome> biomeRegistry, int[] prevY) {
+    private static int[] renderChunk(Chunk chunk, boolean withLeaves, Map<Integer, Biome> biomeRegistry, int[] prevY) {
         final NBTIntArray biomes = chunk.getBiomes();
-        final NBTLongArray heightmap = chunk.getHeightmap();
+        final NBTLongArray heightmap = chunk.getHeightmap(withLeaves);
         final int[] data = new int[256];
         for(int idx=0 ; idx<256 ; idx++) {
-            final int top = heightmap.getBits(idx*9, 9) - 1;
+            final int top = Chunk.getHeight(heightmap, idx) - 1;
             SubChunk sc;
             if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
                 final int index = sc.getBlockIndex(idx, top);
@@ -270,7 +286,7 @@ public class WorldRenderer extends JComponent {
         return data;
     }
 
-    public static int[] renderChunkLayer(Chunk chunk, Map<Integer, Biome> biomeRegistry, int layer) {
+    private static int[] renderChunkLayer(Chunk chunk, Map<Integer, Biome> biomeRegistry, int layer) {
         final NBTIntArray biomes = chunk.getBiomes();
         final int[] data = new int[256];
         chunk.forEachCaveFloorBlock(layer, (xz,y,sc,index) -> {

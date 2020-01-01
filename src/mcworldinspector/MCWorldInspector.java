@@ -276,11 +276,22 @@ public class MCWorldInspector extends javax.swing.JFrame {
     }
 
     private void updateStatusBarBlockInfo(Chunk chunk) {
-        final boolean isSurface = renderOptionsPanel.getMode() == RenderOptionsPanel.Mode.SURFACE;
         final int x = lastMousePos.x & 15;
         final int z = lastMousePos.y & 15;
-        SubChunk.BlockInfo topBlock = isSurface ? chunk.getTopBlockInfo(x, z)
-                : chunk.getCaveFloorBlockInfo(x, renderOptionsPanel.getLayer(), z);
+        SubChunk.BlockInfo topBlock;
+        switch (renderOptionsPanel.getMode()) {
+            case SURFACE:
+                topBlock = chunk.getTopBlockInfo(chunk.getHeightmap(true), x, z);
+                break;
+            case SURFACE_NO_LEAVES:
+                topBlock = chunk.getTopBlockInfo(chunk.getHeightmap(false), x, z);
+                break;
+            case UNDERGROUND:
+                topBlock = chunk.getCaveFloorBlockInfo(x, renderOptionsPanel.getLayer(), z);
+                break;
+            default:
+                throw new AssertionError();
+        }
         statusBarBlockInfo.setText((topBlock != null) ?
             SubChunk.BlockInfo.blockToString(
                     topBlock.block, new StringBuilder()).toString() : "");
@@ -295,20 +306,25 @@ public class MCWorldInspector extends javax.swing.JFrame {
     }
 
     private void renderChunks() {
-        if(renderer != null) {
-            switch (renderOptionsPanel.getMode()) {
-                case SURFACE:
-                    renderer.startChunkRendering(WorldRenderer::renderChunk);
-                    break;
-                case UNDERGROUND: {
-                    final int layer = renderOptionsPanel.getLayer();
-                    renderer.startChunkRendering(
-                            (c,br,u) -> WorldRenderer.renderChunkLayer(c, br, layer));
-                }
+        if(renderer == null)
+            return;
+        switch (renderOptionsPanel.getMode()) {
+            case SURFACE:
+                renderer.startChunkRendering((w,c) ->
+                        WorldRenderer.renderChunksSurface(w, c, true));
+                break;
+            case SURFACE_NO_LEAVES:
+                renderer.startChunkRendering((w,c) ->
+                        WorldRenderer.renderChunksSurface(w, c, false));
+                break;
+            case UNDERGROUND: {
+                final int layer = renderOptionsPanel.getLayer();
+                renderer.startChunkRendering((w,c) ->
+                        WorldRenderer.renderChunksUnderground(w, c, layer));
             }
-            if(lastMousePos != null)
-                updateStatusBarBlockInfo();
         }
+        if(lastMousePos != null)
+            updateStatusBarBlockInfo();
     }
 
     @SuppressWarnings("UseSpecificCatch")
