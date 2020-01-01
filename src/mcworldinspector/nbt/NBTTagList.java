@@ -1,6 +1,7 @@
 package mcworldinspector.nbt;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -17,19 +18,14 @@ import java.util.stream.Stream;
  */
 public class NBTTagList<T> extends NBTArray<T> {
 
-    public static final NBTTagList EMPTY = new NBTTagList(void.class);
+    public static final NBTTagList EMPTY = new NBTTagList(void.class, new Object[0]);
 
     final Class type;
-    final ArrayList<T> entries;
+    final T[] entries;
 
-    NBTTagList(Class type) {
+    NBTTagList(Class type, Object[] entries) {
         this.type = type;
-        entries = new ArrayList<>();
-    }
-
-    NBTTagList(Class type, ArrayList<T> entries) {
-        this.type = type;
-        this.entries = entries;
+        this.entries = (T[])entries;
     }
 
     public static<T> Collector<T, ArrayList<T>, NBTTagList<T>> toTagList(Class<T> type) {
@@ -51,7 +47,7 @@ public class NBTTagList<T> extends NBTArray<T> {
 
             @Override
             public Function<ArrayList<T>, NBTTagList<T>> finisher() {
-                return a -> new NBTTagList<>(type, a);
+                return a -> new NBTTagList<>(type, a.toArray());
             }
 
             @Override
@@ -63,26 +59,26 @@ public class NBTTagList<T> extends NBTArray<T> {
 
     @Override
     public int size() {
-        return entries.size();
+        return entries.length;
     }
 
     @Override
     public T get(int idx) {
-        return entries.get(idx);
+        return entries[idx];
     }
 
     @Override
     public Iterator<T> iterator() {
-        return Collections.unmodifiableList(entries).iterator();
+        return Arrays.asList(entries).iterator();
     }
 
     public Stream<T> stream() {
-        return entries.stream();
+        return Arrays.stream(entries);
     }
 
     @Override
     public String toString() {
-        return entries.toString();
+        return Arrays.toString(entries);
     }
     
     public<U> NBTTagList<U> as(Class<U> type) {
