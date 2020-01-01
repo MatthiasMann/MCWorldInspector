@@ -41,6 +41,7 @@ import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.FileError;
 import mcworldinspector.utils.FileHelpers;
+import mcworldinspector.utils.MemoryUsageIndicator;
 import mcworldinspector.utils.MultipleErrorsDialog;
 import mcworldinspector.utils.StatusBar;
 
@@ -402,7 +403,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
         JSplitPane mainSplitpane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, mainarea, infoSplitpane);
         mainSplitpane.setDividerLocation(1300);
         mainSplitpane.setResizeWeight(1.0);
-        
+
+        MemoryUsageIndicator statusBarMemoryUsage = new MemoryUsageIndicator(20);
+        statusBarMemoryUsage.start();
+        statusBar.addElement(new StatusBar.Element(StatusBar.Alignment.RIGHT, statusBarMemoryUsage));
         statusBarCursorPos.setEditable(false);
         statusBarCursorPos.setColumns(16);
         statusBar.addElement(new StatusBar.Element(StatusBar.Alignment.RIGHT, statusBarCursorPos));
