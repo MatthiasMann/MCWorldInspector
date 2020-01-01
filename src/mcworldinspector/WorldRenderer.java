@@ -44,7 +44,7 @@ public class WorldRenderer extends JComponent {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicInteger asyncRenderingGeneration = new AtomicInteger();
 
-    private List<HighlightEntry> highlights = Collections.EMPTY_LIST;
+    private List<HighlightEntry> highlights = Collections.emptyList();
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
     private final Timer highlight_timer;
     private HighlightSelector highlightSelector;
@@ -165,7 +165,7 @@ public class WorldRenderer extends JComponent {
     }
 
     public void highlight(HighlightSelector selector) {
-        highlights_model.setList(Collections.EMPTY_LIST);
+        highlights_model.setList(Collections.emptyList());
         highlights = selector.apply(world).collect(Collectors.toList());
         if(highlights.isEmpty()) {
             highlightSelector = null;

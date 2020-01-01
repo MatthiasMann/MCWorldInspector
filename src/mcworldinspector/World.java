@@ -32,7 +32,7 @@ import mcworldinspector.utils.FileHelpers;
 public class World {
     
     private NBTTagCompound level = NBTTagCompound.EMPTY;
-    private Map<Integer, Biome> biomeRegistry = Collections.EMPTY_MAP;
+    private Map<Integer, Biome> biomeRegistry = Collections.emptyMap();
     private final HashMap<XZPosition, Chunk> chunks = new HashMap<>();
 
     private World() {
