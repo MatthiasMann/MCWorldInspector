@@ -40,7 +40,7 @@ public @FunctionalInterface interface AsyncExecution<R> {
             try {
                 pending.incrementAndGet();
                 executor.execute(() -> {
-                    final Expected result = Expected.wrapAsync(task);
+                    final Expected<R> result = Expected.wrapAsync(task);
                     synchronized (results) {
                         if(results.isEmpty())
                             results.ensureCapacity(pending.get());

@@ -15,7 +15,7 @@ import javax.swing.tree.TreePath;
  */
 public class MapTreeModel<K, V> implements TreeModel {
 
-    static class Node<V> {
+    static final class Node<V> {
         final String key;
         final List<V> list;
 
@@ -30,10 +30,10 @@ public class MapTreeModel<K, V> implements TreeModel {
         }
     }
 
-    private final Node<V> root;
+    private final Node<Node<V>> root;
 
     public MapTreeModel(Map<K, ? extends List<V>> map, Function<K, String> toString) {
-        this.root = new Node("", map.entrySet().stream()
+        this.root = new Node<>("", map.entrySet().stream()
                 .map(e -> new Node<>(toString.apply(e.getKey()), e.getValue()))
                 .collect(Collectors.toList()));
     }

@@ -18,13 +18,15 @@ public class Expected<T> {
     public Expected(Exception value) {
         this.value = value;
     }
-    
+
+    @SuppressWarnings("unchecked")
     public T get() throws Exception {
         if(value instanceof Exception)
             throw (Exception)value;
         return (T)value;
     }
 
+    @SuppressWarnings("unchecked")
     public void andThen(Consumer<T> after, Consumer<Exception> errorHandler) {
         if(value instanceof Exception)
             errorHandler.accept((Exception)value);
