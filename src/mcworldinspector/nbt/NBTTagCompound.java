@@ -2,43 +2,37 @@ package mcworldinspector.nbt;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import mcworldinspector.utils.FileHelpers;
-import java.util.Collection;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
+import java.util.stream.StreamSupport;
+import mcworldinspector.utils.AbstractSpliterator;
 
 /**
  *
  * @author matthias
  */
-public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Entry<String, Object>> {
+public abstract class NBTTagCompound extends NBTBase {
     
     public static final NBTTagCompound EMPTY = new Empty();
 
     public abstract Object get(String name);
     public abstract int size();
-    public abstract Set<Map.Entry<String, Object>> entrySet();
+    public abstract Stream<Map.Entry<String, Object>> entries();
     public abstract Stream<Object> values();
 
     public boolean isEmpty() {
         return size() == 0;
-    }
-
-    @Override
-    public Iterator<Map.Entry<String, Object>> iterator() {
-        return entrySet().iterator();
     }
 
     public<T> Stream<T> values(Class<T> type) {
@@ -168,26 +162,18 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
                 final Object value1 = parseNBTValue(data, tagid);
                 // many NBTTagCompound have only 2 entries (~25%)
                 if((tagid=data.get()) == 0)
-                    return new Small(
-                            new Small.Entry(name0, value0),
-                            new Small.Entry(name1, value1));
+                    return new Small(name0, value0, name1, value1);
                 final String name2 = readUTF8(data).intern();
                 final Object value2 = parseNBTValue(data, tagid);
                 // keep using Small for up to 4 entries
                 if((tagid=data.get()) == 0)
-                    return new Small(
-                            new Small.Entry(name0, value0),
-                            new Small.Entry(name1, value1),
-                            new Small.Entry(name2, value2));
+                    return new Small(name0, value0, name1, value1, name2, value2);
                 final String name3 = readUTF8(data).intern();
                 final Object value3 = parseNBTValue(data, tagid);
                 // keep using Small for up to 4 entries
                 if((tagid=data.get()) == 0)
-                    return new Small(
-                            new Small.Entry(name0, value0),
-                            new Small.Entry(name1, value1),
-                            new Small.Entry(name2, value2),
-                            new Small.Entry(name3, value3));
+                    return new Small(name0, value0, name1, value1,
+                            name2, value2, name3, value3);
                 final IdentityHashMap<String, Object> map = new IdentityHashMap<>(16);
                 map.put(name0, value0);
                 map.put(name1, value1);
@@ -250,8 +236,8 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
             return 0;
         }
         @Override
-        public Set<Map.Entry<String, Object>> entrySet() {
-            return Collections.emptySet();
+        public Stream<Entry<String, Object>> entries() {
+            return Stream.empty();
         }
         @Override
         public Stream<Object> values() {
@@ -283,8 +269,8 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
 
         @Override
-        public Set<Map.Entry<String, Object>> entrySet() {
-            return Collections.singleton(this);
+        public Stream<Entry<String, Object>> entries() {
+            return Stream.<Map.Entry<String, Object>>of(this);
         }
 
         @Override
@@ -325,104 +311,89 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
     }
 
-    public static class Small extends NBTTagCompound implements Set<Map.Entry<String, Object>> {
-        static final class Entry extends AbstractMap.SimpleImmutableEntry<String, Object> {
-            Entry(String key, Object value) {
-                super(key, value);
-            }
-        }
+    public static class Small extends NBTTagCompound {
+        private final Object[] storage;
 
-        private final Entry[] entries;
-
-        Small(Entry... entries) {
-            this.entries = entries;
+        Small(Object... data) {
+            this.storage = data;
         }
 
         @Override
         public Object get(String name) {
-            for(Entry e : entries) {
-                if(e.getKey().equals(name))
-                    return e.getValue();
+            for(int idx=0,size=storage.length ; idx<size ; idx+=2) {
+                if(storage[idx].equals(name))
+                    return storage[idx+1];
             }
             return null;
         }
 
         @Override
         public int size() {
-            return entries.length;
+            return storage.length / 2;
         }
 
         @Override
-        public Set<Map.Entry<String, Object>> entrySet() {
-            return this;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public Iterator<Map.Entry<String, Object>> iterator() {
-            return (Iterator)Arrays.asList(entries).iterator();
+        public Stream<Entry<String, Object>> entries() {
+            return StreamSupport.stream(new EntrySetIterator(storage), false);
         }
 
         @Override
         public Stream<Object> values() {
-            return Stream.of(entries).map(Entry::getValue);
+            return StreamSupport.stream(new ValueIterator(storage), false);
         }
 
-        @Override
-        public boolean contains(Object o) {
-            throw new UnsupportedOperationException();
+        private static abstract class SmallIteratorBase<T> extends AbstractSpliterator<T> {
+            protected final Object[] storage;
+            protected int index;
+
+            SmallIteratorBase(Object[] storage) {
+                this.storage = storage;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return index < storage.length;
+            }
+
+            @Override
+            public long estimateSize() {
+                return storage.length / 2;
+            }
+
+            @Override
+            public int characteristics() {
+                return ORDERED | SIZED | NONNULL | IMMUTABLE | DISTINCT;
+            }
         }
 
-        @Override
-        public Object[] toArray() {
-            return Arrays.copyOf(entries, entries.length);
+        private static class EntrySetIterator extends SmallIteratorBase<Map.Entry<String, Object>> {
+            EntrySetIterator(Object[] storage) {
+                super(storage);
+            }
+
+            @Override
+            public Map.Entry<String, Object> next() {
+                if(!hasNext())
+                    throw new NoSuchElementException();
+                final Object[] s = storage;
+                final int idx = index += 2;
+                return new AbstractMap.SimpleImmutableEntry<>(
+                        (String)s[idx-2], s[idx-1]);
+            }
         }
 
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T[] toArray(T[] a) {
-            int size = entries.length;
-            if (a.length < size)
-                a = (T[])Array.newInstance(a.getClass().getComponentType(), size);
-            System.arraycopy(entries, 0, a, 0, size);
-            if (size < a.length)
-                a[size] = null;
-            return a;
-        }
+        private static class ValueIterator extends SmallIteratorBase<Object> {
+            ValueIterator(Object[] storage) {
+                super(storage);
+            }
 
-        @Override
-        public boolean add(Map.Entry<String, Object> e) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean remove(Object o) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean containsAll(Collection<?> c) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean addAll(Collection<? extends Map.Entry<String, Object>> c) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean retainAll(Collection<?> c) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean removeAll(Collection<?> c) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void clear() {
-            throw new UnsupportedOperationException();
+            @Override
+            public Object next() {
+                if(!hasNext())
+                    throw new NoSuchElementException();
+                int idx = index += 2;
+                return storage[idx - 1];
+            }
         }
     }
 
@@ -444,8 +415,8 @@ public abstract class NBTTagCompound extends NBTBase implements Iterable<Map.Ent
         }
 
         @Override
-        public Set<Map.Entry<String, Object>> entrySet() {
-            return Collections.unmodifiableSet(map.entrySet());
+        public Stream<Entry<String, Object>> entries() {
+            return map.entrySet().stream();
         }
 
         @Override

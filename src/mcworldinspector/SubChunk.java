@@ -3,6 +3,7 @@ package mcworldinspector;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTLongArray;
@@ -119,11 +120,16 @@ public class SubChunk {
             sb.append(block.getString("Name"));
             final NBTTagCompound properties = block.getCompound("Properties");
             if(!properties.isEmpty()) {
-                String sep = "{";
-                for(Map.Entry<String, Object> p : properties.entrySet()) {
-                    sb.append(sep).append(p.getKey()).append('=').append(Objects.toString(p.getValue()));
-                    sep = ", ";
-                }
+                properties.entries().forEachOrdered(
+                        new Consumer<Map.Entry<String, Object>>() {
+                            String sep = "{";
+                            @Override
+                            public void accept(Map.Entry<String, Object> p) {
+                                sb.append(sep).append(p.getKey()).append('=')
+                                        .append(Objects.toString(p.getValue()));
+                                sep = ", ";
+                            }
+                        });
                 sb.append('}');
             }
             return sb;

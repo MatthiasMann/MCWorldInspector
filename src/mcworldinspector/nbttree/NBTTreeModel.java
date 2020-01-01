@@ -209,7 +209,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
 
     private static void makeNode(Node parent, Object obj) {
         if(obj instanceof NBTTagCompound) {
-            ((NBTTagCompound)obj).entrySet().stream()
+            ((NBTTagCompound)obj).entries()
                     .sorted((a,b) -> a.getKey().compareTo(b.getKey()))
                     .forEach(e -> {
                         final Object value = e.getValue();
