@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.Timer;
+import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.utils.SimpleListModel;
 
@@ -98,7 +99,7 @@ public class WorldRenderer extends JComponent {
     }
 
     public void setBlockColorMap(BlockColorMap bcm) {
-        executor.submit(() -> world.chunks()
+        executor.execute(() -> world.chunks()
                 .flatMap(Chunk::subChunks)
                 .forEach(sc -> sc.mapBlockColors(bcm)));
     }
@@ -107,7 +108,7 @@ public class WorldRenderer extends JComponent {
         final Point center = getViewportCenter();
         center.translate(min_x * 16, min_z * 16);
         final int generation = asyncRenderingGeneration.incrementAndGet();
-        executor.submit(() -> {
+        executor.execute(() -> {
             HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>(
                     world.getChunks().size());
             world.chunks().forEach(chunk -> regions.computeIfAbsent(
@@ -116,7 +117,7 @@ public class WorldRenderer extends JComponent {
                 return Long.compare(
                         getRegionDistance(a.getKey(), center),
                         getRegionDistance(b.getKey(), center));
-            }).forEachOrdered(e -> executor.submit(() -> {
+            }).forEachOrdered(e -> executor.execute(() -> {
                 if(generation != asyncRenderingGeneration.get())
                     return;
                 final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
@@ -149,8 +150,8 @@ public class WorldRenderer extends JComponent {
                     prevX = chunk.getLocalX();
                     prevZ = chunk.getLocalZ();
                 }
+                final XZPosition p = e.getKey();
                 EventQueue.invokeLater(() -> {
-                    final XZPosition p = e.getKey();
                     images.put(p, img);
                     repaint((p.x - min_x) * 16, (p.z - min_z) * 16, 32*16, 32*16);
                 });
@@ -246,6 +247,7 @@ public class WorldRenderer extends JComponent {
     }
 
     public static int[] renderChunk(Chunk chunk, Map<Integer, Biome> biomeRegistry, int[] prevY) {
+        final NBTIntArray biomes = chunk.getBiomes();
         final NBTLongArray heightmap = chunk.getHeightmap();
         final int[] data = new int[256];
         for(int idx=0 ; idx<256 ; idx++) {
@@ -254,7 +256,7 @@ public class WorldRenderer extends JComponent {
             if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
                 final int index = sc.getBlockIndex(idx, top);
                 if(index >= 0) {
-                    int color = getBlockColor(sc, index, chunk, idx, biomeRegistry, top);
+                    int color = getBlockColor(sc, index, biomes, idx, biomeRegistry, top);
                     final int py = prevY[idx & 15];
                     if(py != top && py >= 0)
                         color = scaleRGB(color, (py < top)
@@ -269,9 +271,10 @@ public class WorldRenderer extends JComponent {
     }
 
     public static int[] renderChunkLayer(Chunk chunk, Map<Integer, Biome> biomeRegistry, int layer) {
+        final NBTIntArray biomes = chunk.getBiomes();
         final int[] data = new int[256];
         chunk.forEachCaveFloorBlock(layer, (xz,y,sc,index) -> {
-            int color = getBlockColor(sc, index, chunk, xz, biomeRegistry, y);
+            int color = getBlockColor(sc, index, biomes, xz, biomeRegistry, y);
             data[xz] = color;
             return null;
         });
@@ -292,19 +295,19 @@ public class WorldRenderer extends JComponent {
         return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
-    private static int getBlockColor(SubChunk sc, final int index, Chunk chunk, int idx, Map<Integer, Biome> biomeRegistry, final int top) {
+    private static int getBlockColor(SubChunk sc, final int index, NBTIntArray biomes, int idx, Map<Integer, Biome> biomeRegistry, final int top) {
         BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
         int color = mbc.getColor(index);
         int tinting = mbc.getTinting(index);
         if(tinting > 0)
-            color = adjustColorByBiome(chunk, idx, biomeRegistry, top, tinting, color);
+            color = adjustColorByBiome(biomes, idx, biomeRegistry, top, tinting, color);
         return color;
     }
 
-    private static int adjustColorByBiome(Chunk chunk, int xz, Map<Integer, Biome> biomeRegistry, int y, int tinting, int color) {
-        Biome biome = chunk.getBiome(xz, biomeRegistry);
-        if(biome == null)
-            biome = Biome.UNKNOWN;
+    private static int adjustColorByBiome(NBTIntArray biomes, int xz, Map<Integer, Biome> biomeRegistry, int y, int tinting, int color) {
+        final Biome biome = (biomes != null && biomes.size() == 256)
+                ? biomeRegistry.getOrDefault(biomes.getInt(xz), Biome.UNKNOWN)
+                : Biome.UNKNOWN;
         int elevation = Math.max(0, y - 64);
         int biomeColor;
         switch (tinting) {
