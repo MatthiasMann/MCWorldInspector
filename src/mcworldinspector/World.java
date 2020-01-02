@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -101,10 +102,19 @@ public class World {
     }
 
     public static class AsyncLoading {
+        private static final AtomicInteger worldNumber = new AtomicInteger(1);
         private final World world = new World();
         private final ArrayList<FileError> errors = new ArrayList<>();
         private final AtomicInteger openFiles = new AtomicInteger();
-        private final ExecutorService executor = Executors.newWorkStealingPool();
+        private final ExecutorService executor = Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
+            private final String prefix = "World " + worldNumber.getAndIncrement() + "loading thread ";
+            private final AtomicInteger threadNumber = new AtomicInteger(1);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, prefix + threadNumber.getAndIncrement());
+            }
+        });
         private transient final PropertyChangeSupport propertyChangeSupport = new PropertyChangeSupport(this);
         private final BiConsumer<World, ArrayList<FileError>> done;
         private int progress = 0;

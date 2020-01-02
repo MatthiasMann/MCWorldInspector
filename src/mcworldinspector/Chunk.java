@@ -202,13 +202,6 @@ public class Chunk extends XZPosition {
                 new BlockPos(x << 4, sc.getGlobalY(), z << 4)));
     }
     
-    public void forEach(Consumer<SubChunk> c) {
-        for(SubChunk sc : subchunks) {
-            if(sc != null)
-                c.accept(sc);
-        }
-    }
-    
     public Stream<SubChunk> subChunks() {
         return Arrays.stream(subchunks).filter(Objects::nonNull);
     }

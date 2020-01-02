@@ -1,8 +1,8 @@
 package mcworldinspector.nbt;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.AbstractMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -87,14 +87,19 @@ public abstract class NBTTagCompound extends NBTBase {
         return parseTagCompound(data);
     }
 
-    public static NBTTagCompound parseInflate(ByteBuffer compressed, boolean unwarp) throws DataFormatException, IOException {
-        byte[] tmp = new byte[1 << 20];
+    public static NBTTagCompound parseInflate(ByteBuffer compressed, ByteBuffer uncompressed, boolean unwarp) throws DataFormatException, IOException {
+        int remaining = uncompressed.remaining();
         Inflater i = new Inflater(unwarp);
-        i.setInput(compressed.array(), compressed.position(), compressed.remaining());
-        int len = i.inflate(tmp);
+        i.setInput(compressed);
+        i.inflate(uncompressed);
         if(!i.finished())
-            throw new IOException("NBT data bigger than 1 MB");
-        return parse(ByteBuffer.wrap(tmp, 0, len));
+            throw new IOException("NBT data bigger than " + remaining + " bytes");
+        uncompressed.flip();
+        return parse(uncompressed);
+    }
+
+    public static NBTTagCompound parseInflate(ByteBuffer compressed, boolean unwarp) throws DataFormatException, IOException {
+        return parseInflate(compressed, ByteBuffer.allocateDirect(1 << 20), unwarp);
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed) throws DataFormatException, IOException {
@@ -223,20 +228,14 @@ public abstract class NBTTagCompound extends NBTBase {
             b.limit(new_pos);
             return slicer.apply(b);
         } finally {
-            b.limit(old_limit);
-            b.position(new_pos);
+            b.limit(old_limit).position(new_pos);
         }
     }
 
+    private static final Charset UTF8 = Charset.forName("UTF8");
+
     private static String readUTF8(ByteBuffer b) {
-        int len = b.getChar();
-        int pos = b.position();
-        b.position(pos + len);
-        try {
-            return new String(b.array(), pos, len, "UTF8");
-        } catch(UnsupportedEncodingException e) {
-            throw new InternalError(e);
-        }
+        return slice(b, b.getChar(), sb -> UTF8.decode(sb).toString());
     }
 
     public static class Empty extends NBTTagCompound {

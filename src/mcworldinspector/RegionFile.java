@@ -16,6 +16,7 @@ import java.util.zip.DataFormatException;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.Expected;
+import mcworldinspector.utils.FileHelpers;
 import mcworldinspector.utils.IOExceptionWithOffset;
 
 /**
@@ -28,6 +29,48 @@ public class RegionFile {
 
     private RegionFile() {}
 
+    private static class ChunkBuffers {
+        final ByteBuffer header = ByteBuffer.allocateDirect(5);
+        final ByteBuffer uncompressed = ByteBuffer.allocateDirect(1 << 20);
+        private ByteBuffer compressed;
+
+        public ByteBuffer getCompressed(int size) {
+            if(compressed == null || compressed.capacity() < size)
+                compressed = ByteBuffer.allocateDirect((size + 4095) & -4096);
+            compressed.clear().limit(size);
+            return compressed;
+        }
+    }
+
+    private static final ThreadLocal<ByteBuffer> OFFSETS = new ThreadLocal<>() {
+        @Override
+        protected ByteBuffer initialValue() {
+            return ByteBuffer.allocateDirect(4096);
+        }
+
+        @Override
+        public ByteBuffer get() {
+            final ByteBuffer b = super.get();
+            b.clear();
+            return b;
+        }
+
+    };
+    private static final ThreadLocal<ChunkBuffers> BUFFERS = new ThreadLocal<>() {
+        @Override
+        protected ChunkBuffers initialValue() {
+            return new ChunkBuffers();
+        }
+
+        @Override
+        public ChunkBuffers get() {
+            final ChunkBuffers buffers = super.get();
+            buffers.header.clear();
+            buffers.uncompressed.clear();
+            return buffers;
+        }
+    };
+
     @SuppressWarnings("UseSpecificCatch")
     public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, Consumer<List<Expected<Chunk>>> c) throws IOException {
         Matcher matcher = NAME_PATTERN.matcher(file.getName());
@@ -36,10 +79,11 @@ public class RegionFile {
         
         int globalX = Integer.parseInt(matcher.group(1)) * 32;
         int globalZ = Integer.parseInt(matcher.group(2)) * 32;
-        ByteBuffer offsets = ByteBuffer.allocate(4096);
+        ByteBuffer offsets = OFFSETS.get();
 
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         try {
+            offsets.clear();
             if(raf.getChannel().read(offsets, 0) != offsets.capacity())
                 throw new EOFException();
             offsets.flip();
@@ -73,22 +117,29 @@ public class RegionFile {
     }
 
     private static Chunk loadChunk(RandomAccessFile raf, int offset, int globalX, int globalZ) throws IOException {
-        long file_offset = (long)(offset >> 8) * 4096L;
-        ByteBuffer header = ByteBuffer.allocate(5);
-        raf.getChannel().read(header, file_offset);
-        int size = header.getInt(0);
-        int type = header.get(4);
-        ByteBuffer chunk_gz = ByteBuffer.allocate(size - 1);
-        if(raf.getChannel().read(chunk_gz, file_offset + 5) != chunk_gz.capacity())
+        final ChunkBuffers buffers = BUFFERS.get();
+        final long file_offset = (long)(offset >> 8) * 4096L;
+        if(raf.getChannel().read(buffers.header, file_offset) != 5)
+            throw new EOFException("Could not read chunk header");
+        final int size = buffers.header.getInt(0) - 1;
+        final int type = buffers.header.get(4);
+        final ByteBuffer compressed = buffers.getCompressed(size);
+        if(raf.getChannel().read(compressed, file_offset + 5) != size)
             throw new EOFException("Could not read compressed chunk");
-        chunk_gz.flip();
+        compressed.flip();
 
         try {
             final NBTTagCompound nbt;
             switch (type) {
-                case 1: nbt = NBTTagCompound.parseGZip(chunk_gz); break;
-                case 2: nbt = NBTTagCompound.parseInflate(chunk_gz); break;
-                default: throw new IOException("Unsupported chunk compression type: " + type);
+                case 1:
+                    FileHelpers.parseGZipHeader(compressed);
+                    nbt = NBTTagCompound.parseInflate(compressed, buffers.uncompressed, true);
+                    break;
+                case 2:
+                    nbt = NBTTagCompound.parseInflate(compressed, buffers.uncompressed, false);
+                    break;
+                default:
+                    throw new IOException("Unsupported chunk compression type: " + type);
             }
             return new Chunk(globalX, globalZ, nbt);
         } catch(DataFormatException e) {

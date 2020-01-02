@@ -36,7 +36,7 @@ public final class FileHelpers {
             if(length > maxSize)
                 throw new IOException("File size of " + length +
                         " exceeds maximum allowed size of " + maxSize + " bytes");
-            ByteBuffer buffer = ByteBuffer.allocate((int)length + 1);
+            ByteBuffer buffer = ByteBuffer.allocateDirect((int)length);
             final int read = raf.getChannel().read(buffer);
             if(read != length)
                 throw new EOFException("Could only read " +read + " of " + length + " bytes");

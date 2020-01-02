@@ -226,13 +226,13 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         if(r == null)
             return;
         final Noise noise = new Noise(new Random(2345));
-        r.highlight(world -> {
-            final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
+        r.highlight(w -> {
+            final Map<Integer, Biome> biomeRegistry = w.getBiomeRegistry();
             Optional<Biome> optPlains = biomeRegistry.values().stream()
                     .filter(b -> "minecraft:plains".equals(b.namespacedID)).findAny();
             if(optPlains.isPresent()) {
                 int plainsID = optPlains.get().numericID;
-                return world.getChunks().parallelStream().flatMap(chunk -> {
+                return w.getChunks().parallelStream().flatMap(chunk -> {
                     final int chunkX = chunk.getGlobalX() << 4;
                     final int chunkZ = chunk.getGlobalZ() << 4;
                     final NBTIntArray biomes = chunk.getBiomes();
