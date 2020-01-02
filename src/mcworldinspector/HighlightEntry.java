@@ -37,14 +37,13 @@ public class HighlightEntry {
     
     public void paint(Graphics g, int zoom) {
         final int zoom16 = 16 * zoom;
-        g.drawRect(getX() * zoom16, getZ() * zoom16, zoom16, zoom16);
+        g.fillRect(getX() * zoom16, getZ() * zoom16, zoom16, zoom16);
     }
     
     public static HighlightEntry withOverlay(Chunk chunk, BufferedImage overlay) {
         return new HighlightEntry(chunk) {
             @Override
             public void paint(Graphics g, int zoom) {
-                super.paint(g, zoom);
                 if(zoom == 1)
                     g.drawImage(overlay, getX() * 16, getZ() * 16, null);
                 else {

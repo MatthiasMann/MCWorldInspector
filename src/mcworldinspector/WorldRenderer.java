@@ -1,11 +1,13 @@
 package mcworldinspector;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
@@ -311,6 +313,7 @@ public class WorldRenderer extends JComponent {
             g.drawImage(e.getValue(), p.x * zoom16, p.z * zoom16, zoom16 * 32, zoom16 * 32, this);
         });
 
+        ((Graphics2D)g).setComposite(AlphaComposite.SrcOver.derive(0.4f));
         g.setColor(HIGHLIGHT_COLORS[highlight_index]);
         highlights.forEach(h -> h.paint(g, zoom));
         if(flash != null) {
