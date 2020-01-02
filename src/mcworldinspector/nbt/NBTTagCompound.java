@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap;
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -85,7 +84,7 @@ public abstract class NBTTagCompound extends NBTBase {
             throw new IllegalArgumentException("Root tag must be an NBTTagCompound");
         if(data.getChar() != 0)
             throw new IllegalArgumentException("Root tag must not have a name");
-        return (NBTTagCompound)parseNBTValue(data, 10);
+        return parseTagCompound(data);
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed, boolean unwarp) throws DataFormatException, IOException {
@@ -95,7 +94,7 @@ public abstract class NBTTagCompound extends NBTBase {
         int len = i.inflate(tmp);
         if(!i.finished())
             throw new IOException("NBT data bigger than 1 MB");
-        return parse(ByteBuffer.wrap(Arrays.copyOf(tmp, len)));
+        return parse(ByteBuffer.wrap(tmp, 0, len));
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed) throws DataFormatException, IOException {
@@ -130,6 +129,11 @@ public abstract class NBTTagCompound extends NBTBase {
             case 9: {
                 int tagid = data.get();
                 int len = data.getInt();
+                /* statistics:
+                 *   77% tagid = 0
+                 *   17% tagid = 10
+                 *    4% tagid = 9
+                 */
                 switch (tagid) {
                     case 0: return NBTTagList.EMPTY;
                     case 1: return slice(data, len, NBTByteArray::new);
@@ -141,56 +145,58 @@ public abstract class NBTTagCompound extends NBTBase {
                     case 7: return parseTagList(data, tagid, len, NBTByteArray.class);
                     case 8: return parseTagList(data, tagid, len, String.class);
                     case 9: return parseTagList(data, tagid, len, NBTArray.class);
-                    case 10: return parseTagList(data, tagid, len, NBTTagCompound.class);
+                    case 10: return parseTagListCompound(data, len);
                     case 11: return parseTagList(data, tagid, len, NBTIntArray.class);
                     case 12: return parseTagList(data, tagid, len, NBTLongArray.class);
                     default:
                         throw new IllegalArgumentException("Unknown TAG=" + tagid);
                 }
             }
-            case 10: {
-                int tagid;
-                // about 10% of NBTTagCompound are empty
-                if((tagid=data.get()) == 0)
-                    return EMPTY;
-                final String name0 = readUTF8(data).intern();
-                final Object value0 = parseNBTValue(data, tagid);
-                // most NBTTagCompound have only 1 entry (~50%)
-                if((tagid=data.get()) == 0)
-                    return new Single(name0, value0);
-                final String name1 = readUTF8(data).intern();
-                final Object value1 = parseNBTValue(data, tagid);
-                // many NBTTagCompound have only 2 entries (~25%)
-                if((tagid=data.get()) == 0)
-                    return new Small(name0, value0, name1, value1);
-                final String name2 = readUTF8(data).intern();
-                final Object value2 = parseNBTValue(data, tagid);
-                // keep using Small for up to 4 entries
-                if((tagid=data.get()) == 0)
-                    return new Small(name0, value0, name1, value1, name2, value2);
-                final String name3 = readUTF8(data).intern();
-                final Object value3 = parseNBTValue(data, tagid);
-                // keep using Small for up to 4 entries
-                if((tagid=data.get()) == 0)
-                    return new Small(name0, value0, name1, value1,
-                            name2, value2, name3, value3);
-                final IdentityHashMap<String, Object> map = new IdentityHashMap<>(16);
-                map.put(name0, value0);
-                map.put(name1, value1);
-                map.put(name2, value2);
-                map.put(name3, value3);
-                do {
-                    String nameX = readUTF8(data).intern();
-                    Object valueX = parseNBTValue(data, tagid);
-                    map.put(nameX, valueX);
-                } while((tagid=data.get()) != 0);
-                return new Large(map);
-            }
+            case 10: return parseTagCompound(data);
             case 11: return new NBTIntArray(slice(data, data.getInt()*4, ByteBuffer::asIntBuffer));
             case 12: return new NBTLongArray(slice(data, data.getInt()*8, ByteBuffer::asLongBuffer));
             default:
                 throw new IllegalArgumentException("Unknown TAG=" + tag);
         }
+    }
+
+    private static NBTTagCompound parseTagCompound(ByteBuffer data) {
+        int tagid;
+        // about 10% of NBTTagCompound are empty
+        if((tagid=data.get()) == 0)
+            return EMPTY;
+        final String name0 = readUTF8(data).intern();
+        final Object value0 = parseNBTValue(data, tagid);
+        // most NBTTagCompound have only 1 entry (~50%)
+        if((tagid=data.get()) == 0)
+            return new Single(name0, value0);
+        final String name1 = readUTF8(data).intern();
+        final Object value1 = parseNBTValue(data, tagid);
+        // many NBTTagCompound have only 2 entries (~25%)
+        if((tagid=data.get()) == 0)
+            return new Small(name0, value0, name1, value1);
+        final String name2 = readUTF8(data).intern();
+        final Object value2 = parseNBTValue(data, tagid);
+        // keep using Small for up to 4 entries
+        if((tagid=data.get()) == 0)
+            return new Small(name0, value0, name1, value1, name2, value2);
+        final String name3 = readUTF8(data).intern();
+        final Object value3 = parseNBTValue(data, tagid);
+        // keep using Small for up to 4 entries
+        if((tagid=data.get()) == 0)
+            return new Small(name0, value0, name1, value1,
+                    name2, value2, name3, value3);
+        final IdentityHashMap<String, Object> map = new IdentityHashMap<>(16);
+        map.put(name0, value0);
+        map.put(name1, value1);
+        map.put(name2, value2);
+        map.put(name3, value3);
+        do {
+            String nameX = readUTF8(data).intern();
+            Object valueX = parseNBTValue(data, tagid);
+            map.put(nameX, valueX);
+        } while((tagid=data.get()) != 0);
+        return new Large(map);
     }
 
     private static<U> NBTTagList<U> parseTagList(ByteBuffer data, int tag, int len, Class<U> type) {
@@ -201,6 +207,13 @@ public abstract class NBTTagCompound extends NBTBase {
             list[idx] = entry;
         }
         return new NBTTagList<>(type, list);
+    }
+
+    private static<U> NBTTagList<U> parseTagListCompound(ByteBuffer data, int len) {
+        Object[] list = new Object[len];
+        for(int idx=0 ; idx<len ; idx++)
+            list[idx] = parseTagCompound(data);
+        return new NBTTagList<>(NBTTagCompound.class, list);
     }
 
     private static<R> R slice(ByteBuffer b, int len, Function<ByteBuffer, R> slicer) {
