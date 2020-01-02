@@ -108,7 +108,7 @@ public class World {
         private final AtomicInteger openFiles = new AtomicInteger();
         private final ExecutorService executor = Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
-            private final String prefix = "World " + worldNumber.getAndIncrement() + "loading thread ";
+            private final String prefix = "World " + worldNumber.getAndIncrement() + " loading thread ";
             private final AtomicInteger threadNumber = new AtomicInteger(1);
             @Override
             public Thread newThread(Runnable r) {

@@ -52,6 +52,7 @@ public class WorldRenderer extends JComponent {
     private HighlightSelector highlightSelector;
     private HighlightEntry flash;
     private FlashMode flashMode = FlashMode.RESET;
+    private int zoom = 1;
 
     private enum FlashMode {
         RESET,
@@ -78,14 +79,61 @@ public class WorldRenderer extends JComponent {
         });
     }
 
-    private Point getViewportCenter() {
+    public int getZoom() {
+        return zoom;
+    }
+
+    public void setZoom(int zoom) {
+        if(this.zoom != zoom) {
+            final Point center = getViewportCenter();
+            this.zoom = zoom;
+            revalidate();
+            setViewportPos(center, null);
+        }
+    }
+
+    public void setZoom(int zoom, Point p) {
+        if(this.zoom != zoom) {
+            final Point center = component2mc(p);
+            final Point inViewport = viewportPosition(p);
+            this.zoom = zoom;
+            revalidate();
+            setViewportPos(center, inViewport);
+        }
+    }
+
+    private Point viewportPosition(Point p) {
         Container parent = getParent();
         if(parent instanceof JViewport) {
-            Point pos = ((JViewport)parent).getViewPosition();
-            pos.translate(parent.getWidth()/2 , parent.getHeight() / 2);
-            return pos;
+            final Point pos = ((JViewport)parent).getViewPosition();
+            p.translate(-pos.x, -pos.y);
         }
-        return new Point(getWidth()/2, getHeight()/2);
+        return p;
+    }
+
+    private Point getViewportCenter() {
+        Point pos;
+        Container parent = getParent();
+        if(parent instanceof JViewport) {
+            pos = ((JViewport)parent).getViewPosition();
+            pos.translate(parent.getWidth() / 2, parent.getHeight() / 2);
+        } else
+            pos = new Point(getWidth() / 2, getHeight() / 2);
+        return component2mc(pos);
+    }
+
+    private void setViewportPos(Point pos, Point inViewport) {
+        Container parent = getParent();
+        if(parent instanceof JViewport) {
+            pos = mc2component(pos);
+            if(inViewport != null)
+                pos.translate(-inViewport.x, -inViewport.y);
+            else
+                pos.translate(parent.getWidth() / -2, parent.getHeight() / -2);
+            if(!isValid())
+                parent.validate();
+            ((JViewport)parent).setViewPosition(pos);
+        }
     }
     
     private static long getRegionDistance(XZPosition r, Point center) {
@@ -124,7 +172,9 @@ public class WorldRenderer extends JComponent {
                 final XZPosition p = e.getKey();
                 EventQueue.invokeLater(() -> {
                     images.put(p, img);
-                    repaint((p.x - min_x) * 16, (p.z - min_z) * 16, 32*16, 32*16);
+                    final int zoom16 = zoom * 16;
+                    repaint((p.x - min_x) * zoom16, (p.z - min_z) * zoom16,
+                            zoom16 * 32, zoom16 * 32);
                 });
             }));
         });
@@ -198,14 +248,15 @@ public class WorldRenderer extends JComponent {
     }
 
     public void scrollTo(Chunk chunk, boolean center) {
+        final int zoom16 = zoom * 16;
         Rectangle r = new Rectangle(
-                (chunk.getGlobalX() - min_x) * 16,
-                (chunk.getGlobalZ() - min_z) * 16, 16, 16);
+                (chunk.getGlobalX() - min_x) * zoom16,
+                (chunk.getGlobalZ() - min_z) * zoom16, zoom16, zoom16);
         final Container parent = getParent();
         if(center && parent instanceof JViewport)
             r.grow((parent.getWidth() - r.width) / 2, (parent.getHeight() - r.height) / 2);
         else
-            r.grow(16, 16);
+            r.grow(zoom16, zoom16);
         scrollRectToVisible(r);
     }
 
@@ -224,13 +275,19 @@ public class WorldRenderer extends JComponent {
             repaint();
     }
 
-    public Point mouse2mc(Point p) {
-        return new Point(p.x + min_x * 16, p.y+ min_z * 16);
+    public Point component2mc(Point p) {
+        return new Point(p.x / zoom + min_x * 16, p.y / zoom + min_z * 16);
+    }
+
+    public Point mc2component(Point p) {
+        return new Point((p.x - min_x * 16) * zoom, (p.y - min_z * 16) * zoom);
     }
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension((max_x - min_x + 1) * 16, (max_z - min_z + 1) * 16);
+        final int zoom16 = zoom * 16;
+        return new Dimension((max_x - min_x + 1) * zoom16,
+                (max_z - min_z + 1) * zoom16);
     }
 
     private static final Color HIGHLIGHT_COLORS[] = { Color.RED, Color.BLUE, Color.GREEN };
@@ -238,21 +295,28 @@ public class WorldRenderer extends JComponent {
 
     @Override
     protected void paintComponent(Graphics g) {
+        @SuppressWarnings("LocalVariableHidesMemberVariable")
+        final int zoom = this.zoom;
+        final int zoom16 = zoom * 16;
         final Rectangle clipBounds = g.getClipBounds();
         g.setColor(Color.BLACK);
         g.fillRect(clipBounds.x, clipBounds.y, clipBounds.width, clipBounds.height);
-        g.translate(-min_x*16, -min_z*16);
+        g.translate(-min_x*zoom16, -min_z*zoom16);
 
-        images.entrySet().forEach(i -> {
-            final XZPosition p = i.getKey();
-            g.drawImage(i.getValue(), p.x * 16, p.z * 16, this);
+        images.entrySet().forEach((zoom == 1) ? e -> {
+            final XZPosition p = e.getKey();
+            g.drawImage(e.getValue(), p.x * 16, p.z * 16, this);
+        } : e -> {
+            final XZPosition p = e.getKey();
+            g.drawImage(e.getValue(), p.x * zoom16, p.z * zoom16, zoom16 * 32, zoom16 * 32, this);
         });
+
         g.setColor(HIGHLIGHT_COLORS[highlight_index]);
-        highlights.forEach(h -> h.paint(g));
+        highlights.forEach(h -> h.paint(g, zoom));
         if(flash != null) {
             if(flashMode != FlashMode.OFF) {
                 g.setColor(Color.PINK);
-                flash.paint(g);
+                flash.paint(g, zoom);
             }
             switch(flashMode) {
                 case OFF: flashMode = FlashMode.ON; break;

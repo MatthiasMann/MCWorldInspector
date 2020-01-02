@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -228,7 +229,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                lastMousePos = renderer.mouse2mc(e.getPoint());
+                lastMousePos = renderer.component2mc(e.getPoint());
                 final Chunk chunk = getMouseChunk();
                 if(chunk != null) {
                     final Biome biome = chunk.getBiome(lastMousePos.x & 15,
@@ -244,7 +245,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                lastMousePos = renderer.mouse2mc(e.getPoint());
+                lastMousePos = renderer.component2mc(e.getPoint());
                 highlightListPanel.selectFromRenderer(lastMousePos, e.getClickCount());
             }
 
@@ -255,8 +256,19 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 statusBarBiome.setText("");
                 statusBarBlockInfo.setText("");
             }
+
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                if(e.isControlDown()) {
+                    int newZoom = (e.getWheelRotation() < 0)
+                            ? Math.max(renderer.getZoom() - 1, 1)
+                            : Math.min(renderer.getZoom() + 1, MAX_ZOOM);
+                    renderer.setZoom(newZoom, e.getPoint());
+                }
+            }
         };
         renderer.addMouseMotionListener(ma);
+        renderer.addMouseWheelListener(ma);
         renderer.addMouseListener(ma);
         firePropertyChange("world", oldWorld, world);
     }
@@ -354,6 +366,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
         }
     }
 
+    private static final int MAX_ZOOM = 4;
+
     private JMenuBar createMenuBar() {
         JMenuBar menubar = new JMenuBar();
         JMenu filemenu = new JMenu("File");
@@ -392,6 +406,23 @@ public class MCWorldInspector extends javax.swing.JFrame {
         menubar.add(filemenu);
         JMenu viewmenu = new JMenu("View");
         viewmenu.setMnemonic('V');
+        JMenuItem zoomIn = viewmenu.add(new WorldAction("Zoom in") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(renderer != null)
+                    renderer.setZoom(Math.min(renderer.getZoom() + 1, MAX_ZOOM));
+            }
+        });
+        zoomIn.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0));
+        JMenuItem zoomOut = viewmenu.add(new WorldAction("Zoom out") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(renderer != null)
+                    renderer.setZoom(Math.max(renderer.getZoom() - 1, 1));
+            }
+        });
+        zoomOut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0));
+        viewmenu.addSeparator();
         JMenuItem viewLevelDat = viewmenu.add(new WorldAction("level.dat") {
             @Override
             public void actionPerformed(ActionEvent e) {

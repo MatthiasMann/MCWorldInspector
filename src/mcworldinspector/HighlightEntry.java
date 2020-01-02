@@ -3,7 +3,6 @@ package mcworldinspector;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -36,16 +35,23 @@ public class HighlightEntry {
         return "Chunk <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
     }
     
-    public void paint(Graphics g) {
-        g.drawRect(getX() * 16, getZ() * 16, 16, 16);
+    public void paint(Graphics g, int zoom) {
+        final int zoom16 = 16 * zoom;
+        g.drawRect(getX() * zoom16, getZ() * zoom16, zoom16, zoom16);
     }
     
     public static HighlightEntry withOverlay(Chunk chunk, BufferedImage overlay) {
         return new HighlightEntry(chunk) {
             @Override
-            public void paint(Graphics g) {
-                super.paint(g);
-                g.drawImage(overlay, getX() * 16, getZ() * 16, null);
+            public void paint(Graphics g, int zoom) {
+                super.paint(g, zoom);
+                if(zoom == 1)
+                    g.drawImage(overlay, getX() * 16, getZ() * 16, null);
+                else {
+                    final int zoom16 = 16 * zoom;
+                    g.drawImage(overlay, getX() * zoom16, getZ() * zoom16,
+                            zoom16, zoom16, null);
+                }
             }
         };
     }
