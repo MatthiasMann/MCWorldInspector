@@ -18,37 +18,45 @@ import mcworldinspector.utils.SimpleListModel;
  * @author matthias
  */
 public abstract class AbstractFilteredPanel<T> extends JPanel {
+    private final Supplier<WorldRenderer> renderer;
     private final JTextField filterTF = new JTextField();
     private final JList<T> list = new JList<>();
+    protected final GroupLayout layout;
+    protected final GroupLayout.ParallelGroup horizontal;
+    protected final GroupLayout.SequentialGroup vertical;
     
     @SuppressWarnings("OverridableMethodCallInConstructor")
     public AbstractFilteredPanel(Supplier<WorldRenderer> renderer) {
         super(null);
 
-        list.addListSelectionListener((e) -> {
-            final WorldRenderer r = renderer.get();
-            if(r != null)
-                r.highlight(createHighlighter(list.getSelectedValuesList()));
-        });
+        this.renderer = renderer;
+
+        list.addListSelectionListener(e -> doHighlighting());
         filterTF.getDocument().addDocumentListener(new DocumentChangedListener() {
             @Override
             public void documentChanged(DocumentEvent e) {
                 buildListModel();
             }
         });
-        
+
         JScrollPane blockListSP = new JScrollPane(list);
-        GroupLayout layout = new GroupLayout(this);
+        layout = new GroupLayout(this);
+        vertical = layout.createSequentialGroup()
+                .addComponent(filterTF, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(blockListSP, GroupLayout.DEFAULT_SIZE, 1000, Short.MAX_VALUE);
+        horizontal = layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(filterTF)
+                .addComponent(blockListSP);
+        layout.setHorizontalGroup(horizontal);
+        layout.setVerticalGroup(vertical);
         setLayout(layout);
-        layout.setVerticalGroup(
-                layout.createSequentialGroup()
-                        .addComponent(filterTF, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(blockListSP, GroupLayout.DEFAULT_SIZE, 1000, Short.MAX_VALUE));
-        layout.setHorizontalGroup(
-                layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                        .addComponent(filterTF)
-                        .addComponent(blockListSP));
+    }
+
+    protected void doHighlighting() {
+        final WorldRenderer r = renderer.get();
+        if(r != null)
+            r.highlight(createHighlighter(list.getSelectedValuesList()));
     }
 
     protected void buildListModel() {

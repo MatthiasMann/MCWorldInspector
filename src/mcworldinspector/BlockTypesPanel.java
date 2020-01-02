@@ -1,5 +1,6 @@
 package mcworldinspector;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.event.ActionEvent;
@@ -17,12 +18,14 @@ import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.LayoutStyle;
 import javax.swing.SwingUtilities;
 import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.MapTreeModel;
+import mcworldinspector.utils.RangeSlider;
 
 /**
  *
@@ -30,11 +33,43 @@ import mcworldinspector.utils.MapTreeModel;
  */
 public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
+    private final RangeSlider subChunkSlider = new RangeSlider(0, 16);
+    private final JLabel lowerLabel = new JLabel();
+    private final JLabel upperLabel = new JLabel();
     private Set<String> blockTypes = Collections.emptySet();
 
     public BlockTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
         this.executorService = executorService;
+
+        lowerLabel.setLabelFor(subChunkSlider);
+        lowerLabel.setHorizontalAlignment(JLabel.RIGHT);
+        upperLabel.setLabelFor(subChunkSlider);
+
+        int labelWidth = lowerLabel.getFontMetrics(lowerLabel.getFont()).stringWidth("123");
+
+        horizontal.addGroup(layout.createSequentialGroup()
+                .addGap(4)
+                .addComponent(lowerLabel, labelWidth, labelWidth, labelWidth)
+                .addGap(4)
+                .addComponent(subChunkSlider)
+                .addGap(4)
+                .addComponent(upperLabel, labelWidth, labelWidth, labelWidth)
+                .addGap(4));
+        vertical.addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                .addComponent(lowerLabel)
+                .addComponent(subChunkSlider)
+                .addComponent(upperLabel));
+        subChunkSlider.addPropertyChangeListener(e -> {
+            updateLabels();
+            doHighlighting();
+        });
+        updateLabels();
+    }
+
+    private void updateLabels() {
+        lowerLabel.setText(Integer.toString(subChunkSlider.getLower() << 4));
+        upperLabel.setText(Integer.toString(subChunkSlider.getUpper() << 4));
     }
 
     @Override
@@ -46,7 +81,9 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     @Override
     public void setWorld(World world) {
         AsyncExecution.submitNoThrow(executorService, () -> {
-            return world.chunks().flatMap(Chunk::getBlockTypes)
+            return world.chunks()
+                    .flatMap(Chunk::subChunks)
+                    .flatMap(SubChunk::getBlockTypes)
                     .collect(Collectors.toCollection(TreeSet::new));
         }, result -> {
             result.remove("minecraft:air");
@@ -64,14 +101,18 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     protected WorldRenderer.HighlightSelector createHighlighter(List<String> selected) {
-        return new Highlighter(selected);
+        return new Highlighter(selected, subChunkSlider.getLower(), subChunkSlider.getHeight());
     }
     
     public static final class Highlighter implements WorldRenderer.HighlightSelector {
         private final List<String> blockTypes;
+        private final int lower;
+        private final int upper;
 
-        public Highlighter(List<String> blockTypes) {
+        public Highlighter(List<String> blockTypes, int lower, int upper) {
             this.blockTypes = blockTypes;
+            this.lower = lower;
+            this.upper = upper;
         }
 
         public List<String> getBlockTypes() {
@@ -81,14 +122,21 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
         @Override
         public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.getBlockTypes().anyMatch(blockTypes::contains))
+                    .filter(chunk -> chunk.subChunks(lower, upper)
+                            .flatMap(SubChunk::getBlockTypes)
+                            .anyMatch(blockTypes::contains))
                     .map(chunk -> new HighlightEntry(chunk));
         }
 
         @Override
         public void showDetailsFor(Component parent, HighlightEntry entry) {
             final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
-            blockTypes.stream().flatMap(entry.chunk::findBlocks).forEach(b -> {
+            blockTypes.stream().flatMap(blockType -> {
+                final int x = entry.chunk.x << 4;
+                final int z = entry.chunk.z << 4;
+                return entry.chunk.subChunks(lower, upper).flatMap(sc ->
+                        sc.findBlocks(blockType, new BlockPos(x, sc.getGlobalY(), z)));
+            }).forEach(b -> {
                 blocks.computeIfAbsent(b.y, ArrayList::new).add(b);
             });
             final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);

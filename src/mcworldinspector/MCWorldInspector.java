@@ -37,6 +37,7 @@ import javax.swing.JTextField;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileView;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbttree.NBTTreeModel;
@@ -115,10 +116,15 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     private void openWorld() {
         final WorldFolderFileView fileView = new WorldFolderFileView();
-        final AbstractFileFilter fileFilter = new AbstractFileFilter("Minecraft world folder") {
+        final FileFilter fileFilter = new FileFilter() {
             @Override
             public boolean accept(File pathname) {
                 return pathname.isDirectory();
+            }
+
+            @Override
+            public String getDescription() {
+                return "Minecraft world folder";
             }
         };
         JFileChooser jfc = new JFileChooser(preferences.get("recent_folder", ".")) {
@@ -259,8 +265,9 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                if(e.isControlDown()) {
-                    int newZoom = (e.getWheelRotation() < 0)
+                final int wheelRotation = e.getWheelRotation();
+                if(e.isControlDown() && wheelRotation != 0) {
+                    int newZoom = (wheelRotation > 0)
                             ? Math.max(renderer.getZoom() - 1, 1)
                             : Math.min(renderer.getZoom() + 1, MAX_ZOOM);
                     renderer.setZoom(newZoom, e.getPoint());
@@ -379,7 +386,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         openWorld.setMnemonic('O');
-        openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_MASK));
+        openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK));
         JMenuItem reloadWorld = filemenu.add(new AbstractAction("Reload world") {
             @Override
             public void actionPerformed(ActionEvent e) {

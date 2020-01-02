@@ -206,8 +206,8 @@ public class Chunk extends XZPosition {
         return Arrays.stream(subchunks).filter(Objects::nonNull);
     }
 
-    public Stream<String> getBlockTypes() {
-        return subChunks().flatMap(SubChunk::getBlockTypes);
+    public Stream<SubChunk> subChunks(int from, int to) {
+        return Arrays.stream(subchunks, from, to).filter(Objects::nonNull);
     }
     
     public Stream<NBTTagCompound> entities() {
