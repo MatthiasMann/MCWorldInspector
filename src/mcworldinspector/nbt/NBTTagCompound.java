@@ -235,7 +235,18 @@ public abstract class NBTTagCompound extends NBTBase {
     private static final Charset UTF8 = Charset.forName("UTF8");
 
     private static String readUTF8(ByteBuffer b) {
-        return slice(b, b.getChar(), sb -> UTF8.decode(sb).toString());
+        int len = b.getChar();
+        if(!b.isDirect()) {
+            final int pos = b.position();
+            b.position(pos + len);
+            return new String(b.array(), pos, len, UTF8);
+        } else if(len <= 32) {
+            // 99% of all strings are 32 or less bytes long
+            final byte[] tmp = new byte[len];
+            b.get(tmp, 0, len);
+            return new String(tmp, UTF8);
+        } else
+            return slice(b, len, sb -> UTF8.decode(sb).toString());
     }
 
     public static class Empty extends NBTTagCompound {
