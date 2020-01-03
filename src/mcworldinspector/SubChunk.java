@@ -140,8 +140,7 @@ public class SubChunk {
     }
 
     public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
-        class Builder extends IntPredicateBuilder<Stream<BlockInfo>>
-                implements Function<String, OptionalInt> {
+        class Builder extends IntPredicateBuilder<Stream<BlockInfo>> {
             @Override
             public Stream<BlockInfo> build() {
                 return Stream.empty();
@@ -168,17 +167,11 @@ public class SubChunk {
                     return null;
                 }).filter(Objects::nonNull);
             }
-            @Override
-            public OptionalInt apply(String blockType) {
-                final var pal = palette;
-                for(int idx=0,size=pal.size() ; idx<size ; idx++) {
-                    if(blockType.equals(pal.get(idx).getString("Name")))
-                        return OptionalInt.of(idx);
-                }
-                return OptionalInt.empty();
-            }
         }
         final var b = new Builder();
-        return IntPredicateBuilder.of(blockTypes, b, b);
+        final var pal = palette;
+        return IntPredicateBuilder.of(blockTypes.stream().flatMapToInt(
+                blockType -> IntStream.range(0, pal.size()).filter(
+                        idx -> blockType.equals(pal.get(idx).getString("Name")))), b);
     }
 }

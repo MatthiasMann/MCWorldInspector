@@ -4,8 +4,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.IntPredicate;
 import java.util.function.ToIntFunction;
+import java.util.stream.IntStream;
 
 /**
  *
@@ -94,6 +96,34 @@ public abstract class IntPredicateBuilder<T> {
             }
         }
         return builder.build();
+    }
+
+    public static<R> R of(IntStream src, IntPredicateBuilder<R> builder) {
+        class Collector implements IntConsumer {
+            boolean hasValue0;
+            int value0;
+            int[] array;
+
+            @Override
+            public void accept(int value) {
+                if(hasValue0) {
+                    if(array == null) {
+                        array = new int[8];
+                        array[0] = value0;
+                        value0 = 1;
+                    } else if(value0 == array.length)
+                        array = Arrays.copyOf(array, array.length * 2);
+                    array[value0++] = value;
+                } else {
+                    hasValue0 = true;
+                    value0 = value;
+                }
+            }
+        }
+        Collector c = new Collector();
+        src.forEach(c);
+        return !c.hasValue0 ? builder.build() : (c.array != null)
+                ? builder.build(c.array, c.value0) : builder.build(c.value0);
     }
 
     private static final IntPredicateBuilder<IntPredicate> BUILDER = new IntPredicateBuilder<> () {
