@@ -85,7 +85,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.getEntities(MINECRAFT_SHEEP)
                             .anyMatch(this::filterColor))
-                    .map(chunk -> new HighlightEntry(chunk));
+                    .map(HighlightEntry::new);
         }
 
         @Override

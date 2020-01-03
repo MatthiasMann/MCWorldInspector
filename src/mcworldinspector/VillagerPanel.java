@@ -80,7 +80,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.getEntities(MINECRAFT_VILLAGER)
                             .anyMatch(this::filter))
-                    .map(chunk -> new HighlightEntry(chunk));
+                    .map(HighlightEntry::new);
         }
 
         @Override

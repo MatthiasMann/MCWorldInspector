@@ -125,20 +125,17 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
                     .filter(chunk -> chunk.subChunks(lower, upper)
                             .flatMap(SubChunk::getBlockTypes)
                             .anyMatch(blockTypes::contains))
-                    .map(chunk -> new HighlightEntry(chunk));
+                    .map(HighlightEntry::new);
         }
 
         @Override
         public void showDetailsFor(Component parent, HighlightEntry entry) {
             final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
-            blockTypes.stream().flatMap(blockType -> {
-                final int x = entry.chunk.x << 4;
-                final int z = entry.chunk.z << 4;
-                return entry.chunk.subChunks(lower, upper).flatMap(sc ->
-                        sc.findBlocks(blockType, new BlockPos(x, sc.getGlobalY(), z)));
-            }).forEach(b -> {
-                blocks.computeIfAbsent(b.y, ArrayList::new).add(b);
-            });
+            final int x = entry.chunk.x << 4;
+            final int z = entry.chunk.z << 4;
+            entry.chunk.subChunks(lower, upper).flatMap(sc ->
+                    sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
+                    .forEach(b -> blocks.computeIfAbsent(b.y, ArrayList::new).add(b));
             final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);
             final JTree tree = new JTree(model);
             tree.setRootVisible(false);

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.swing.GroupLayout;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -55,8 +56,11 @@ public abstract class AbstractFilteredPanel<T> extends JPanel {
 
     protected void doHighlighting() {
         final WorldRenderer r = renderer.get();
-        if(r != null)
-            r.highlight(createHighlighter(list.getSelectedValuesList()));
+        if(r != null) {
+            final List<T> selected = list.getSelectedValuesList();
+            r.highlight(selected.isEmpty() ?
+                    w -> Stream.empty() : createHighlighter(selected));
+        }
     }
 
     protected void buildListModel() {

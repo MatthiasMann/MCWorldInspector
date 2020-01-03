@@ -4,9 +4,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
@@ -196,11 +196,6 @@ public class Chunk extends XZPosition {
     public SubChunk.BlockInfo getCaveFloorBlockInfo(int x, int layer, int z) {
         return getCaveFloorBlock(z*16 + x, layer, makeBlockInfo());
     }
-
-    public Stream<SubChunk.BlockInfo> findBlocks(String blockType) {
-        return subChunks().flatMap(sc -> sc.findBlocks(blockType,
-                new BlockPos(x << 4, sc.getGlobalY(), z << 4)));
-    }
     
     public Stream<SubChunk> subChunks() {
         return Arrays.stream(subchunks).filter(Objects::nonNull);
@@ -247,12 +242,14 @@ public class Chunk extends XZPosition {
     public Stream<NBTTagCompound> getStructures(String id) {
         return structures().filter(filterByID(id));
     }
-    
-    public Stream<Biome> biomes(Map<Integer, Biome> biomeRegistry) {
+
+    public IntStream biomes() {
         final NBTIntArray biomes = getBiomes();
-        if(biomes == null)
-            return Stream.empty();
-        return biomes.stream().mapToObj(biomeRegistry::get).filter(Objects::nonNull);
+        return (biomes == null) ? IntStream.empty() : biomes.stream();
+    }
+
+    public Stream<Biome> biomes(Map<Integer, Biome> biomeRegistry) {
+        return biomes().mapToObj(biomeRegistry::get).filter(Objects::nonNull);
     }
 
     private static Function<NBTTagCompound, Stream<String>> toID() {

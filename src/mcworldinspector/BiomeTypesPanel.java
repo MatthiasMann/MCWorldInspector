@@ -9,7 +9,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.swing.JCheckBox;
 import mcworldinspector.utils.AsyncExecution;
+import mcworldinspector.utils.IntPredicateBuilder;
 
 /**
  *
@@ -17,23 +19,28 @@ import mcworldinspector.utils.AsyncExecution;
  */
 public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     private final ExecutorService executorService;
-    private World world;
+    private final JCheckBox btnExactShape = new JCheckBox();
     private Set<Biome> biomes = Collections.emptySet();
 
     public BiomeTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
         super(renderer);
         this.executorService = executorService;
+
+        btnExactShape.setText("Exact biome shape (slower)");
+        btnExactShape.addChangeListener(e -> doHighlighting());
+
+        horizontal.addComponent(btnExactShape);
+        vertical.addComponent(btnExactShape);
     }
 
     @Override
     public void reset() {
-        world = null;
+        biomes = Collections.emptySet();
         buildListModel();
     }
 
     @Override
     public void setWorld(World world) {
-        this.world = world;
         final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(c -> c.biomes(biomeRegistry))
@@ -52,24 +59,23 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
 
     @Override
     protected WorldRenderer.HighlightSelector createHighlighter(List<Biome> selected) {
-        return new Highlighter(world.getBiomeRegistry(), selected);
-    }
-    
-    public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final Map<Integer, Biome> biomeRegistry;
-        private final List<Biome> biomes;
-
-        public Highlighter(Map<Integer, Biome> biomeRegistry, List<Biome> biomes) {
-            this.biomeRegistry = biomeRegistry;
-            this.biomes = biomes;
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.biomes(biomeRegistry)
-                            .anyMatch(biomes::contains))
-                    .map(chunk -> new HighlightEntry(chunk));
+        final var bm = IntPredicateBuilder.of(selected, Biome::getNumericID);
+        if(btnExactShape.isSelected()) {
+            return w -> w.getChunks().parallelStream().flatMap(chunk -> {
+                final var chunkBiomes = chunk.getBiomes();
+                if(chunkBiomes == null)
+                    return Stream.empty();
+                final var og = new HighlightEntry.WithOverlay(chunk);
+                for(int idx=0 ; idx<256 ; ++idx) {
+                    if(bm.test(chunkBiomes.getInt(idx)))
+                        og.setRGB(idx & 15, idx >> 4, 0xFFFF0000);
+                }
+                return og.stream();
+            });
+        } else {
+            return w -> w.getChunks().parallelStream()
+                    .filter(chunk -> chunk.biomes().anyMatch(bm::test))
+                    .map(HighlightEntry::new);
         }
     }
 }

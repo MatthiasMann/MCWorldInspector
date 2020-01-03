@@ -69,7 +69,7 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
         public Stream<HighlightEntry> apply(World world) {
             return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.structureTypes().anyMatch(structureTypes::contains))
-                    .map(chunk -> new HighlightEntry(chunk));
+                    .map(HighlightEntry::new);
         }
 
         @Override

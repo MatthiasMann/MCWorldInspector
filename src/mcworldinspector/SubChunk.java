@@ -1,14 +1,17 @@
 package mcworldinspector;
 
-import java.util.BitSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
+import mcworldinspector.utils.IntPredicateBuilder;
 
 /**
  *
@@ -86,7 +89,7 @@ public class SubChunk {
     }
 
     public void mapBlockColors(BlockColorMap bcm) {
-        mappedPalette = bcm.map(palette);;
+        mappedPalette = bcm.map(palette);
     }
 
     public BlockColorMap.MappedBlockPalette mappedBlockColors() {
@@ -136,39 +139,46 @@ public class SubChunk {
         }
     }
 
-    private int findBlockTypeIndex(int start, String blockType) {
-        for(int idx=start ; idx<palette.size() ; idx++) {
-            if(blockType.equals(palette.get(idx).getString("Name")))
-                return idx;
+    public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
+        class Builder extends IntPredicateBuilder<Stream<BlockInfo>>
+                implements Function<String, OptionalInt> {
+            @Override
+            public Stream<BlockInfo> build() {
+                return Stream.empty();
+            }
+            @Override
+            public Stream<BlockInfo> build(int index) {
+                final var bits = bits_per_blockstate & 255;
+                final var bs = blockStates;
+                final var block = palette.get(index);
+                return IntStream.range(0, 4096)
+                        .filter(pos -> index == bs.getBits(pos*bits, bits))
+                        .mapToObj(pos -> new BlockInfo(pos, offset, block));
+            }
+            @Override
+            public Stream<BlockInfo> build(int[] array, int count) {
+                final var pal = palette;
+                final var bits = bits_per_blockstate & 255;
+                final var bs = blockStates;
+                return IntStream.range(0, 4096).mapToObj(pos -> {
+                    final var value = bs.getBits(pos*bits, bits);
+                    for(int idx=0 ; idx<count ; ++idx)
+                        if(array[idx] == value)
+                            return new BlockInfo(pos, offset, pal.get(value));
+                    return null;
+                }).filter(Objects::nonNull);
+            }
+            @Override
+            public OptionalInt apply(String blockType) {
+                final var pal = palette;
+                for(int idx=0,size=pal.size() ; idx<size ; idx++) {
+                    if(blockType.equals(pal.get(idx).getString("Name")))
+                        return OptionalInt.of(idx);
+                }
+                return OptionalInt.empty();
+            }
         }
-        return -1;
-    }
-
-    public Stream<BlockInfo> findBlocks(String blockType, BlockPos offset) {
-        final int bits = bits_per_blockstate & 255;
-        final NBTLongArray bs = blockStates;
-        final int index = findBlockTypeIndex(0, blockType);
-        if(index < 0)
-            return Stream.empty();
-        int index2 = findBlockTypeIndex(index+1, blockType);
-        if(index2 < 0) {
-            final NBTTagCompound block = palette.get(index);
-            return IntStream.range(0, 4096)
-                    .filter(pos -> index == bs.getBits(pos*bits, bits))
-                    .mapToObj(pos -> new BlockInfo(pos, offset, block));
-        }
-        final BitSet set = new BitSet();
-        do {
-            set.set(index2);
-            index2 = findBlockTypeIndex(index2+1, blockType);
-        } while(index2 >= 0);
-        return IntStream.range(0, 4096)
-                .mapToObj(pos -> {
-                    int value = bs.getBits(pos*bits, bits);
-                    if(!set.get(value))
-                        return null;
-                    return new BlockInfo(pos, offset, palette.get(value));
-                })
-                .filter(Objects::nonNull);
+        final var b = new Builder();
+        return IntPredicateBuilder.of(blockTypes, b, b);
     }
 }

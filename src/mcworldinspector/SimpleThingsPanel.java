@@ -149,15 +149,15 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
             r.highlight(world -> {
                 long seed = world.getRandomSeed();
                 return world.chunks().filter(c -> c.isSlimeChunk(seed))
-                        .map(chunk -> new HighlightEntry(chunk));
+                        .map(HighlightEntry::new);
             });
     }//GEN-LAST:event_btnSlimeChunksActionPerformed
 
     private void btnPlayerPosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPlayerPosActionPerformed
         final WorldRenderer r = renderer.get();
         if(r != null)
-            r.highlight(world -> {
-                Chunk chunk = world.getPlayerChunk();
+            r.highlight(w -> {
+                Chunk chunk = w.getPlayerChunk();
                 if(chunk != null)
                     return Stream.of(new HighlightEntry(chunk));
                 return Stream.empty();
@@ -167,8 +167,8 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
     private void btnSpawnChunkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSpawnChunkActionPerformed
         final WorldRenderer r = renderer.get();
         if(r != null)
-            r.highlight(world -> {
-                Chunk chunk = world.getSpawnChunk();
+            r.highlight(w -> {
+                Chunk chunk = w.getSpawnChunk();
                 if(chunk != null)
                     return Stream.of(new HighlightEntry(chunk));
                 return Stream.empty();
@@ -236,7 +236,8 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                     final int chunkX = chunk.getGlobalX() << 4;
                     final int chunkZ = chunk.getGlobalZ() << 4;
                     final NBTIntArray biomes = chunk.getBiomes();
-                    final HighlightEntry.OverlayGen og = new HighlightEntry.OverlayGen();
+                    final HighlightEntry.WithOverlay og =
+                            new HighlightEntry.WithOverlay(chunk);
                     for(int idx=0 ; idx<256 ; ++idx) {
                         if(biomes.getInt(idx) == plainsID) {
                             final int x = idx & 15;
@@ -248,7 +249,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                                 og.setRGB(x, z, 0xFFFF0000);
                         }
                     }
-                    return og.createHighlightEntry(chunk);
+                    return og.stream();
                 });
             }
             return Stream.empty();
@@ -268,7 +269,7 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         public Stream<HighlightEntry> apply(World world) {
             return world.chunks().filter(chunk ->
                     chunk.tileEntities().anyMatch(filter))
-                    .map(chunk -> new HighlightEntry(chunk));
+                    .map(HighlightEntry::new);
         }
 
         @Override
