@@ -44,7 +44,6 @@ public class WorldRenderer extends JComponent {
     private final int max_x;
     private final int max_z;
     private final HashMap<XZPosition, BufferedImage> images = new HashMap<>();
-    /** NOTE: must use single threaded worker as the BLOCK_TO_COLORMAP is shared */
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicInteger asyncRenderingGeneration = new AtomicInteger();
 
