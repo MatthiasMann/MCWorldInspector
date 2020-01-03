@@ -78,6 +78,10 @@ public class World {
         return chunks.values().stream();
     }
 
+    public String getName() {
+         return level.getCompound("Data").get("LevelName", String.class, "Unknown");
+    }
+
     public long getRandomSeed() {
         final Long seed = level.getCompound("Data").get("RandomSeed", Long.class);
         return seed != null ? seed : 0;
@@ -143,7 +147,7 @@ public class World {
                             result.andThen(level -> {
                                 world.level = level;
                                 String oldName = levelName;
-                                levelName = level.getCompound("Data").getString("LevelName");
+                                levelName = world.getName();
                                 propertyChangeSupport.firePropertyChange(
                                         "levelName", oldName, levelName);
                             }, ex -> errors.add(new FileError(levelDatFile, ex)));

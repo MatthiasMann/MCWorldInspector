@@ -8,17 +8,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import javax.imageio.ImageIO;
+import mcworldinspector.utils.FileError;
+import mcworldinspector.utils.FileErrorWithExtra;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,15 +28,18 @@ import org.json.JSONTokener;
  *
  * @author matthias
  */
-public class ColorPaletteGenerator implements Closeable {
+public class BlockColorMapGenerator implements Closeable {
 
+    private final List<FileError> errors;
     private final ArrayList<ZipFile> zipFiles = new ArrayList<>();
 
-    private ColorPaletteGenerator(Stream<File> files) {
+    public BlockColorMapGenerator(Stream<File> files, List<FileError> errors) {
+        this.errors = errors;
         files.forEach(file -> {
             try {
                 zipFiles.add(new ZipFile(file));
             } catch(IOException ex) {
+                errors.add(new FileError(file, ex));
             }
         });
     }
@@ -52,48 +55,31 @@ public class ColorPaletteGenerator implements Closeable {
         zipFiles.clear();
     }
 
-    public static void main(String[] args) throws IOException {
-        Map<String, Color> map = buildFromTexturePack(Stream.of(
-                new File("/home/matthias/.minecraft/versions/1.14.4/1.14.4.jar"),
-                new File("/home/matthias/Minecraft/Colonies/mods/structurize-0.10.201-ALPHA.jar"),
-                new File("/home/matthias/Minecraft/Colonies/resourcepacks/Nate's+Tweaks+0.18.2.zip")));
-        try(PrintStream ps = new PrintStream("blockmap.txt")) {
-            map.entrySet().stream().map(ColorPaletteGenerator::formatColorMapEntry).forEach(ps::println);
-        }
-    }
-
-    public static String formatColorMapEntry(Map.Entry<String, Color> e) {
-        return String.format("%06X %s", e.getValue().getRGB() & 0xFFFFFF, e.getKey());
-    }
-
     private static final Pattern BLOCKSTATE_PATTERN = Pattern.compile("^assets/([^/]+)/blockstates/([^.]+)\\.json$");
 
-    public static final Map<String, Color> buildFromTexturePack(Stream<File> files) throws IOException {
-        try(ColorPaletteGenerator g = new ColorPaletteGenerator(files)) {
-            return g.findBlockStates();
-        }
-    }
-    
-    private Map<String, Color> findBlockStates() {
+    public BlockColorMap generateColorMap() {
         final HashMap<String, FileRef> blockStates = new HashMap<>();
         zipFiles.stream().forEach(file -> {
             file.stream().forEach(e -> {
                 if(!e.isDirectory()) {
                     Matcher m = BLOCKSTATE_PATTERN.matcher(e.getName());
-                    if(m.matches())
-                        blockStates.put(m.group(1) + ':' + m.group(2),
-                                new FileRef(file, e));
+                    if(m.matches()) {
+                        final String blockType = m.group(1) + ':' + m.group(2);
+                        if(!"minecraft:air".equals(blockType))
+                            blockStates.put(blockType, new FileRef(file, e));
+                    }
                 }
             });
         });
 
-        final HashMap<String, Color> result = new HashMap<>();
+        final HashMap<String, BlockColorMap.BlockColorInfo> result = new HashMap<>();
         blockStates.entrySet().stream().forEach(e -> {
             String block = e.getKey();
             int idx = block.indexOf(':');
             String ns = block.substring(0, idx);
             Color color = processBlockState(ns, e.getValue());
             if(color != null) {
+                int tinting = 0;
                 // apply "tinting" to special blocks
                 switch (block) {
                     case "minecraft:grass_block":
@@ -102,25 +88,26 @@ public class ColorPaletteGenerator implements Closeable {
                     case "minecraft:vines":
                     case "minecraft:tall_grass":
                     case "minecraft:large_fern":
-                        block = "#1" + block;
+                        tinting = 1;
                         break;
                     case "minecraft:oak_leaves":
                     case "minecraft:dark_oak_leaves":
                     case "minecraft:acacia_leaves":
                     case "minecraft:jungle_leaves":
-                        block = "#2" + block;
+                        tinting = 2;
                         break;
                     case "minecraft:water":
                     case "minecraft:bubble_column":
-                        block = "#3" + block;
+                        tinting = 3;
                         break;
                     default:
                         break;
                 }
-                result.put(block, color);
+                result.put(block, new BlockColorMap.BlockColorInfo(
+                        color.getRGB(), tinting));
             }
         });
-        return result;
+        return new BlockColorMap(result);
     }
     
     private Color processBlockState(String ns, FileRef e) {
@@ -149,19 +136,29 @@ public class ColorPaletteGenerator implements Closeable {
                     JSONArray multipart = blockState.getJSONArray("multipart");
                     for(int idx=0 ; idx<multipart.length() ; ++idx) {
                         try {
-                            String model = multipart.getJSONObject(idx)
-                                    .getJSONObject("apply").getString("model");
-                            FileRef modelEntry = findEntry(ns, "models", model, ".json");
-                            if(modelEntry != null)
-                                return processModel(ns, modelEntry);
-                        } catch(JSONException ex) {
-                        }
+                            Object apply = multipart.getJSONObject(idx).get("apply");
+                            if(apply instanceof JSONArray) {
+                                JSONArray applyArray = (JSONArray)apply;
+                                for(int idx2=0 ; idx2<applyArray.length() ; idx2++) {
+                                    try {
+                                        String model = applyArray.getJSONObject(idx2).getString("model");
+                                        FileRef modelEntry = findEntry(ns, "models", model, ".json");
+                                        if(modelEntry != null)
+                                            return processModel(ns, modelEntry);
+                                    } catch(JSONException ex) {}
+                                }
+                            } else if(apply instanceof JSONObject) {
+                                String model = ((JSONObject)apply).getString("model");
+                                FileRef modelEntry = findEntry(ns, "models", model, ".json");
+                                if(modelEntry != null)
+                                    return processModel(ns, modelEntry);
+                            }
+                        } catch(JSONException ex) {}
                     }
                 }
             }
-        } catch(JSONException ex) {
-            System.err.println(e);
-            ex.printStackTrace();
+        } catch(IOException|JSONException ex) {
+            errors.add(e.wrap(ex));
         }
         return null;
     }
@@ -183,9 +180,8 @@ public class ColorPaletteGenerator implements Closeable {
                 if(textureEntry != null)
                     return processTexture(textureEntry);
             }
-        } catch(JSONException ex) {
-            System.err.println(e);
-            ex.printStackTrace();
+        } catch(IOException|JSONException ex) {
+            errors.add(e.wrap(ex));
         }
         return null;
     }
@@ -212,11 +208,20 @@ public class ColorPaletteGenerator implements Closeable {
                     divRound(green, pixels),
                     divRound(blue, pixels));
         } catch(IOException ex) {
-            ex.printStackTrace();
+            errors.add(e.wrap(ex));
         }
         return null;
     }
-    
+
+    static class ZipFile extends java.util.zip.ZipFile {
+        final File file;
+
+        public ZipFile(File file) throws IOException {
+            super(file);
+            this.file = file;
+        }
+    }
+
     static class FileRef {
         final ZipFile zipFile;
         final ZipEntry entry;
@@ -234,6 +239,10 @@ public class ColorPaletteGenerator implements Closeable {
         public String toString() {
             return "FileRef{" + "zipFile=" + zipFile.getName() + ", entry=" + entry + '}';
         }
+
+        public FileErrorWithExtra wrap(Exception ex) {
+            return new FileErrorWithExtra(zipFile.file, ex, entry.getName());
+        }
     }
 
     private FileRef findEntry(String ns, String path, String name, String ext) {
@@ -242,6 +251,8 @@ public class ColorPaletteGenerator implements Closeable {
             ns = name.substring(0, idx);
             name = name.substring(idx + 1);
         }
+        if(ns.equals("minecraft") && name.equals("block/air"))
+            return null;
         final String entryName = "assets/" + ns + '/' + path + '/' + name + ext;
         for(ZipFile file : zipFiles) {
             ZipEntry entry = file.getEntry(entryName);
@@ -255,14 +266,11 @@ public class ColorPaletteGenerator implements Closeable {
         return (num + (denom>>1)) / denom;
     }
 
-    private static Object parseJSON(FileRef e) throws JSONException {
+    private static Object parseJSON(FileRef e) throws IOException, JSONException {
         try(InputStream is = e.getInputStream();
                 InputStreamReader isr = new InputStreamReader(is);
                 BufferedReader br = new BufferedReader(isr)) {
             return new JSONTokener(br).nextValue();
-        } catch(IOException ex) {
-            ex.printStackTrace();
-            return null;
         }
     }
 }

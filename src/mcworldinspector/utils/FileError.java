@@ -1,6 +1,7 @@
 package mcworldinspector.utils;
 
 import java.io.File;
+import java.util.Objects;
 
 /**
  *
@@ -12,8 +13,8 @@ public class FileError {
     protected final Exception error;
 
     public FileError(File file, Exception error) {
-        this.file = file;
-        this.error = error;
+        this.file = Objects.requireNonNull(file, "file");
+        this.error = Objects.requireNonNull(error, "exception");
     }
 
     public File getFile() {

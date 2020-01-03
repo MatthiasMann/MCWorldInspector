@@ -6,7 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.BitSet;
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -61,6 +61,14 @@ public class BlockColorMap {
         this.blocks = new HashMap<>(blocks);
     }
 
+    public int size() {
+        return blocks.size();
+    }
+
+    public boolean isEmpty() {
+        return blocks.isEmpty();
+    }
+
     public MappedBlockPalette map(NBTTagList<NBTTagCompound> palette) {
         final int[] colors = new int[palette.size()];
         final byte[] tinting = new byte[palette.size()];
@@ -100,6 +108,22 @@ public class BlockColorMap {
     public static BlockColorMap load(File file) throws IOException {
         try(FileInputStream fis = new FileInputStream(file)) {
             return load(fis);
+        }
+    }
+
+    public void save(PrintStream ps) {
+        blocks.entrySet().stream().map(e -> {
+            final int color = e.getValue().color & 0xFFFFFF;
+            final int tinting = e.getValue().tinting;
+            return (tinting > 0)
+                    ? String.format("%06X #%d%s", color, tinting, e.getKey())
+                    : String.format("%06X %s", color, e.getKey());
+        }).forEach(ps::println);
+    }
+
+    public void save(File file) throws IOException {
+        try(PrintStream ps = new PrintStream(file, "UTF8")) {
+            save(ps);
         }
     }
 }

@@ -1,5 +1,6 @@
 package mcworldinspector;
 
+import java.awt.EventQueue;
 import mcworldinspector.utils.ProgressBarDialog;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
@@ -7,12 +8,13 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.Collections;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +41,8 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileView;
+import static mcworldinspector.CreateColorMapDialog.BCM_EXTENSION_FILTER;
+import static mcworldinspector.CreateColorMapDialog.RECENT_FOLDER_COLORMAP_KEY;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.FileError;
@@ -52,6 +56,8 @@ import mcworldinspector.utils.StatusBar;
  * @author matthias
  */
 public class MCWorldInspector extends javax.swing.JFrame {
+
+    private static final String ACTIVE_COLOR_MAP_KEY = "active_color_map";
 
     private final Preferences preferences;
     private final ExecutorService workerPool;
@@ -95,15 +101,53 @@ public class MCWorldInspector extends javax.swing.JFrame {
         filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
         filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));
 
-        try(InputStream is = MCWorldInspector.class.getResourceAsStream("blockmap.txt")) {
-            blockColorMap = BlockColorMap.load(is);
-        } catch(IOException ex) {
-            blockColorMap = BlockColorMap.EMPTY;
-        }
+        EventQueue.invokeLater(() -> {
+            if(!loadBlockColorMap(preferences.get(ACTIVE_COLOR_MAP_KEY, "")))
+                createColorMapAction.showDialog();
+        });
     }
 
     public WorldRenderer getRenderer() {
         return renderer;
+    }
+
+    public void setBlockColorMap(BlockColorMap blockColorMap) {
+        this.blockColorMap = Objects.requireNonNull(blockColorMap);
+        if(renderer != null) {
+            renderer.setBlockColorMap(blockColorMap);
+            renderChunks();
+        }
+    }
+
+    private boolean loadBlockColorMap(String path)  {
+        if(path.isEmpty())
+            return false;
+        return loadBlockColorMap(new File(path));
+    }
+
+    private boolean loadBlockColorMap(File file)  {
+        try{
+            BlockColorMap bcm = BlockColorMap.load(file);
+            if(!bcm.isEmpty()) {
+                setBlockColorMap(bcm);
+                preferences.put(ACTIVE_COLOR_MAP_KEY, file.getAbsolutePath());
+                return true;
+            }
+        } catch(IOException ex) {
+            MultipleErrorsDialog.show(this, "Error while loading block color map",
+                    true, new FileError(file, ex));
+        }
+        return false;
+    }
+
+    private void loadBlockColorMap() {
+        JFileChooser jfc = new JFileChooser(preferences.get(RECENT_FOLDER_COLORMAP_KEY, "."));
+        jfc.addChoosableFileFilter(BCM_EXTENSION_FILTER);
+        jfc.setFileFilter(BCM_EXTENSION_FILTER);
+        if(jfc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            preferences.put(RECENT_FOLDER_COLORMAP_KEY, jfc.getCurrentDirectory().getAbsolutePath());
+            loadBlockColorMap(jfc.getSelectedFile());
+        }
     }
 
     private void scrollToPlayerorSpawn() {
@@ -179,7 +223,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
             finishedLoadingWorld(newWorld);
             postLoadCB.run();
             if(!errors.isEmpty())
-                new MultipleErrorsDialog(this, true, errors).setVisible(true);
+                MultipleErrorsDialog.show(this,
+                        "Errors loading world " + newWorld.getName(), true, errors);
         });
         loading.addPropertyChangeListener(e -> {
             switch(e.getPropertyName()) {
@@ -357,9 +402,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 NBTTagCompound nbt = NBTTagCompound.parseGuess(buffer);
                 NBTTreeModel.displayNBT(this, nbt, file.getAbsolutePath());
             } catch(Exception ex) {
-                MultipleErrorsDialog dlg = new MultipleErrorsDialog(this, true,
-                        Collections.singletonList(new FileError(file, ex)));
-                dlg.setVisible(true);
+                MultipleErrorsDialog.show(this, "Errors while loading " + file,
+                        true, new FileError(file, ex));
             }
         }
     }
@@ -375,11 +419,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     private static final int MAX_ZOOM = 4;
 
-    private JMenuBar createMenuBar() {
-        JMenuBar menubar = new JMenuBar();
-        JMenu filemenu = new JMenu("File");
-        filemenu.setMnemonic('F');
-        JMenuItem openWorld = filemenu.add(new AbstractAction("Open world") {
+    private JMenu createFileMenu() {
+        JMenu fileMenu = new JMenu("File");
+        fileMenu.setMnemonic('F');
+        JMenuItem openWorld = fileMenu.add(new AbstractAction("Open world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openWorld();
@@ -387,7 +430,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         openWorld.setMnemonic('O');
         openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK));
-        JMenuItem reloadWorld = filemenu.add(new AbstractAction("Reload world") {
+        JMenuItem reloadWorld = fileMenu.add(new WorldAction("Reload world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 reloadWorld();
@@ -395,25 +438,36 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         reloadWorld.setMnemonic('R');
         reloadWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
-        JMenuItem closeWorld = filemenu.add(new WorldAction("Close world") {
+        JMenuItem closeWorld = fileMenu.add(new WorldAction("Close world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 closeWorld();
             }
         });
         closeWorld.setMnemonic('C');
-        filemenu.addSeparator();
-        JMenuItem openNBT = filemenu.add(new AbstractAction("Open NBT") {
+        fileMenu.addSeparator();
+        JMenuItem loadBCM = fileMenu.add(new AbstractAction("Load block color map") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                loadBlockColorMap();
+            }
+        });
+        loadBCM.setMnemonic('b');
+        fileMenu.addSeparator();
+        JMenuItem openNBT = fileMenu.add(new AbstractAction("Open NBT") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openNBT();
             }
         });
         openNBT.setMnemonic('N');
-        menubar.add(filemenu);
-        JMenu viewmenu = new JMenu("View");
-        viewmenu.setMnemonic('V');
-        JMenuItem zoomIn = viewmenu.add(new WorldAction("Zoom in") {
+        return fileMenu;
+    }
+
+    private JMenu createViewMenu() {
+        JMenu viewMenu = new JMenu("View");
+        viewMenu.setMnemonic('V');
+        JMenuItem zoomIn = viewMenu.add(new WorldAction("Zoom in") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(renderer != null)
@@ -421,7 +475,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         zoomIn.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0));
-        JMenuItem zoomOut = viewmenu.add(new WorldAction("Zoom out") {
+        JMenuItem zoomOut = viewMenu.add(new WorldAction("Zoom out") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(renderer != null)
@@ -429,8 +483,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         zoomOut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0));
-        viewmenu.addSeparator();
-        JMenuItem viewLevelDat = viewmenu.add(new WorldAction("level.dat") {
+        viewMenu.addSeparator();
+        JMenuItem viewLevelDat = viewMenu.add(new WorldAction("level.dat") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(world != null)
@@ -438,7 +492,24 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         viewLevelDat.setMnemonic('l');
-        menubar.add(viewmenu);
+        return viewMenu;
+    }
+
+    private final CreateColorMapAction createColorMapAction = new CreateColorMapAction();
+
+    private JMenu createToolMenu() {
+        JMenu toolsMenu = new JMenu("Tools");
+        toolsMenu.setMnemonic('T');
+        JMenuItem createColorMap = toolsMenu.add(createColorMapAction);
+        createColorMap.setMnemonic('C');
+        return toolsMenu;
+    }
+
+    private JMenuBar createMenuBar() {
+        JMenuBar menubar = new JMenuBar();
+        menubar.add(createFileMenu());
+        menubar.add(createViewMenu());
+        menubar.add(createToolMenu());
         return menubar;
     }
     
@@ -538,6 +609,37 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 specialCache.put(folder, cached);
             }
             return cached;
+        }
+    }
+
+    private class CreateColorMapAction extends AbstractAction {
+        private CreateColorMapDialog dlg;
+
+        public CreateColorMapAction() {
+            super("Create block color map");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            showDialog();
+        }
+
+        public void showDialog() {
+            if(dlg != null) {
+                dlg.toFront();
+                return;
+            }
+            dlg = new CreateColorMapDialog(MCWorldInspector.this, false);
+            dlg.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    dlg = null;
+                }
+            });
+            dlg.setColorMapListener(MCWorldInspector.this::setBlockColorMap);
+            dlg.setColorMapSavedListener(file -> preferences.put(
+                    ACTIVE_COLOR_MAP_KEY, file.getAbsolutePath()));
+            dlg.setVisible(true);
         }
     }
 }

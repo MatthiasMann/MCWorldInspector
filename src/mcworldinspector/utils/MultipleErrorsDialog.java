@@ -1,21 +1,23 @@
 package mcworldinspector.utils;
 
-import java.io.File;
+import java.awt.Component;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.swing.table.AbstractTableModel;
 
 /**
  *
  * @author matthias
  */
-public class MultipleErrorsDialog extends javax.swing.JDialog {
+public class MultipleErrorsDialog extends JDialog {
 
     private final AbstractTableModel errorTableModel;
 
-    public MultipleErrorsDialog(java.awt.Frame parent, boolean modal, List<FileError> errors) {
-        super(parent, modal);
+    private MultipleErrorsDialog(Component owner, String title, boolean modal, List<FileError> errors) {
+        super(owner, title, modal);
         this.errorTableModel = new AbstractTableModel() {
             @Override
             public int getRowCount() {
@@ -35,6 +37,8 @@ public class MultipleErrorsDialog extends javax.swing.JDialog {
                     case 1:
                         if (error instanceof FileOffsetError)
                             return Long.toString(((FileOffsetError)error).getOffset());
+                        else if(error instanceof FileErrorWithExtra)
+                            return Objects.toString(((FileErrorWithExtra)error).getExtra());
                         else
                             return "";
                     case 2: return error.getError().toString();
@@ -51,35 +55,52 @@ public class MultipleErrorsDialog extends javax.swing.JDialog {
             public String getColumnName(int columnIndex) {
                 switch (columnIndex) {
                     case 0: return "File";
-                    case 1: return "Offset";
+                    case 1: return "Offset / Extra";
                     case 2: return "Error";
                     default: throw new AssertionError();
                 }
             }
-            
         };
         initComponents();
-        jErrorTable.getColumnModel().getColumn(1).setMaxWidth(jOffset.getPreferredSize().width);
+        jErrorTable.getColumnModel().getColumn(1).setPreferredWidth(tfOffset.getPreferredSize().width);
         jErrorTable.getSelectionModel().addListSelectionListener(e -> {
             int row = jErrorTable.getSelectedRow();
             if (row < 0) {
-                jFileName.setText("");
-                jOffset.setText("");
-                jErrorMsg.setText("");
+                tfFileName.setText("");
+                tfOffset.setText("");
+                tfExtra.setText("");
+                tfErrorMsg.setText("");
             } else {
                 final FileError error = errors.get(row);
                 final StringWriter stringWriter = new StringWriter();
                 error.getError().printStackTrace(new PrintWriter(stringWriter));
-                jFileName.setText(error.getFile().toString());
-                jErrorMsg.setText(stringWriter.toString());
-                if (error instanceof FileOffsetError)
-                    jOffset.setText(Long.toString(((FileOffsetError)error).getOffset()));
-                else
-                    jOffset.setText("");
+                tfFileName.setText(error.getFile().toString());
+                tfErrorMsg.setText(stringWriter.toString());
+                tfErrorMsg.setCaretPosition(0);
+                if (error instanceof FileOffsetError) {
+                    tfOffset.setText(Long.toString(((FileOffsetError)error).getOffset()));
+                    tfExtra.setText("");
+                } else if (error instanceof FileErrorWithExtra) {
+                    tfOffset.setText("");
+                    tfExtra.setText(Objects.toString(((FileErrorWithExtra)error).getExtra()));
+                } else {
+                    tfOffset.setText("");
+                    tfExtra.setText("");
+                }
             }
         });
         if(!errors.isEmpty())
             jErrorTable.getSelectionModel().setSelectionInterval(0, 0);
+    }
+
+    public static MultipleErrorsDialog show(Component parent, String title, boolean modal, List<FileError> errors) {
+        MultipleErrorsDialog dlg = new MultipleErrorsDialog(parent, title, modal, errors);
+        dlg.setVisible(true);
+        return dlg;
+    }
+
+    public static MultipleErrorsDialog show(Component parent, String title, boolean modal, FileError error) {
+        return show(parent, title, modal, Collections.singletonList(error));
     }
 
     /**
@@ -95,10 +116,11 @@ public class MultipleErrorsDialog extends javax.swing.JDialog {
         jScrollPane1 = new javax.swing.JScrollPane();
         jErrorTable = new javax.swing.JTable();
         javax.swing.JPanel jPanel1 = new javax.swing.JPanel();
-        jFileName = new javax.swing.JTextField();
-        jOffset = new javax.swing.JTextField();
+        tfFileName = new javax.swing.JTextField();
+        tfOffset = new javax.swing.JTextField();
+        tfExtra = new javax.swing.JTextField();
         javax.swing.JScrollPane jScrollPane2 = new javax.swing.JScrollPane();
-        jErrorMsg = new javax.swing.JTextArea();
+        tfErrorMsg = new javax.swing.JTextArea();
         closeButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -114,34 +136,39 @@ public class MultipleErrorsDialog extends javax.swing.JDialog {
 
         jSplitPane1.setLeftComponent(jScrollPane1);
 
-        jFileName.setEditable(false);
+        tfFileName.setEditable(false);
 
-        jOffset.setEditable(false);
-        jOffset.setColumns(10);
+        tfOffset.setEditable(false);
+        tfOffset.setColumns(10);
 
-        jErrorMsg.setColumns(20);
-        jErrorMsg.setRows(5);
-        jScrollPane2.setViewportView(jErrorMsg);
+        tfExtra.setEditable(false);
+
+        tfErrorMsg.setColumns(20);
+        tfErrorMsg.setRows(5);
+        jScrollPane2.setViewportView(tfErrorMsg);
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(jFileName)
+                .addComponent(tfFileName)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jOffset, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(tfOffset, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE))
             .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 1086, Short.MAX_VALUE)
+            .addComponent(tfExtra)
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jFileName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jOffset, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(tfFileName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(tfOffset, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 305, Short.MAX_VALUE))
+                .addComponent(tfExtra, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 282, Short.MAX_VALUE))
         );
 
         jSplitPane1.setBottomComponent(jPanel1);
@@ -185,10 +212,11 @@ public class MultipleErrorsDialog extends javax.swing.JDialog {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton closeButton;
-    private javax.swing.JTextArea jErrorMsg;
     private javax.swing.JTable jErrorTable;
-    private javax.swing.JTextField jFileName;
-    private javax.swing.JTextField jOffset;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JTextArea tfErrorMsg;
+    private javax.swing.JTextField tfExtra;
+    private javax.swing.JTextField tfFileName;
+    private javax.swing.JTextField tfOffset;
     // End of variables declaration//GEN-END:variables
 }
