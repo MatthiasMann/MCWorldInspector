@@ -13,7 +13,6 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
@@ -30,7 +29,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -398,8 +397,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
             preferences.put("recent_folder_nbt", jfc.getCurrentDirectory().getAbsolutePath());
             final File file = jfc.getSelectedFile();
             try {
-                ByteBuffer buffer = FileHelpers.loadFile(file, 1<<20);
-                NBTTagCompound nbt = NBTTagCompound.parseGuess(buffer);
+                final var buffer = FileHelpers.loadFile(file, 1<<20);
+                final var nbt = NBTTagCompound.parseGuess(buffer);
                 NBTTreeModel.displayNBT(this, nbt, file.getAbsolutePath());
             } catch(Exception ex) {
                 MultipleErrorsDialog.show(this, "Errors while loading " + file,
@@ -407,6 +406,30 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         }
     }
+
+
+    @SuppressWarnings("UseSpecificCatch")
+    private void openMCMap() {
+        JFileChooser jfc = new JFileChooser(preferences.get("recent_folder_nbt", "."));
+        if(jfc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            preferences.put("recent_folder_nbt", jfc.getCurrentDirectory().getAbsolutePath());
+            final File file = jfc.getSelectedFile();
+            try {
+                final var buffer = FileHelpers.loadFile(file, 1<<20);
+                final var nbt = NBTTagCompound.parseGuess(buffer);
+                final var img = MCMapRender.mapToImage(nbt);
+                JOptionPane.showMessageDialog(this, (img != null) ?
+                        new ImageIcon(img) : "Not a Minecraft map file",
+                        "Map " + file, (img != null)
+                                ? JOptionPane.INFORMATION_MESSAGE
+                                : JOptionPane.ERROR_MESSAGE);
+            } catch(Exception ex) {
+                MultipleErrorsDialog.show(this, "Errors while loading " + file,
+                        true, new FileError(file, ex));
+            }
+        }
+    }
+
     protected abstract class WorldAction extends AbstractAction {
         @SuppressWarnings("OverridableMethodCallInConstructor")
         public WorldAction(String name) {
@@ -420,9 +443,9 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private static final int MAX_ZOOM = 4;
 
     private JMenu createFileMenu() {
-        JMenu fileMenu = new JMenu("File");
+        final var fileMenu = new JMenu("File");
         fileMenu.setMnemonic('F');
-        JMenuItem openWorld = fileMenu.add(new AbstractAction("Open world") {
+        final var openWorld = fileMenu.add(new AbstractAction("Open world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openWorld();
@@ -430,7 +453,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         openWorld.setMnemonic('O');
         openWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK));
-        JMenuItem reloadWorld = fileMenu.add(new WorldAction("Reload world") {
+        final var reloadWorld = fileMenu.add(new WorldAction("Reload world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 reloadWorld();
@@ -438,7 +461,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         reloadWorld.setMnemonic('R');
         reloadWorld.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
-        JMenuItem closeWorld = fileMenu.add(new WorldAction("Close world") {
+        final var closeWorld = fileMenu.add(new WorldAction("Close world") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 closeWorld();
@@ -446,7 +469,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         closeWorld.setMnemonic('C');
         fileMenu.addSeparator();
-        JMenuItem loadBCM = fileMenu.add(new AbstractAction("Load block color map") {
+        final var loadBCM = fileMenu.add(new AbstractAction("Load block color map") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 loadBlockColorMap();
@@ -454,20 +477,27 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         loadBCM.setMnemonic('b');
         fileMenu.addSeparator();
-        JMenuItem openNBT = fileMenu.add(new AbstractAction("Open NBT") {
+        final var openNBT = fileMenu.add(new AbstractAction("Open NBT") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 openNBT();
             }
         });
         openNBT.setMnemonic('N');
+        final var openMCMap = fileMenu.add(new AbstractAction("Open Minecraft map data") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                openMCMap();
+            }
+        });
+        openMCMap.setMnemonic('M');
         return fileMenu;
     }
 
     private JMenu createViewMenu() {
-        JMenu viewMenu = new JMenu("View");
+        final var viewMenu = new JMenu("View");
         viewMenu.setMnemonic('V');
-        JMenuItem zoomIn = viewMenu.add(new WorldAction("Zoom in") {
+        final var zoomIn = viewMenu.add(new WorldAction("Zoom in") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(renderer != null)
@@ -475,7 +505,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         zoomIn.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0));
-        JMenuItem zoomOut = viewMenu.add(new WorldAction("Zoom out") {
+        final var zoomOut = viewMenu.add(new WorldAction("Zoom out") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(renderer != null)
@@ -484,7 +514,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         });
         zoomOut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0));
         viewMenu.addSeparator();
-        JMenuItem viewLevelDat = viewMenu.add(new WorldAction("level.dat") {
+        final var viewLevelDat = viewMenu.add(new WorldAction("level.dat") {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(world != null)
@@ -498,15 +528,15 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final CreateColorMapAction createColorMapAction = new CreateColorMapAction();
 
     private JMenu createToolMenu() {
-        JMenu toolsMenu = new JMenu("Tools");
+        final var toolsMenu = new JMenu("Tools");
         toolsMenu.setMnemonic('T');
-        JMenuItem createColorMap = toolsMenu.add(createColorMapAction);
+        final var createColorMap = toolsMenu.add(createColorMapAction);
         createColorMap.setMnemonic('C');
         return toolsMenu;
     }
 
     private JMenuBar createMenuBar() {
-        JMenuBar menubar = new JMenuBar();
+        final var menubar = new JMenuBar();
         menubar.add(createFileMenu());
         menubar.add(createViewMenu());
         menubar.add(createToolMenu());
