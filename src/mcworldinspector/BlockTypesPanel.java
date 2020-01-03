@@ -101,7 +101,7 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     protected WorldRenderer.HighlightSelector createHighlighter(List<String> selected) {
-        return new Highlighter(selected, subChunkSlider.getLower(), subChunkSlider.getHeight());
+        return new Highlighter(selected, subChunkSlider.getLower(), subChunkSlider.getUpper());
     }
     
     public static final class Highlighter implements WorldRenderer.HighlightSelector {
