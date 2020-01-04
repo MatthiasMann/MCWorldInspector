@@ -20,21 +20,19 @@ import mcworldinspector.nbttree.NBTTreeModel;
  */
 public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
-    private final Supplier<WorldRenderer> renderer;
     private final Model model = new Model();
+    private WorldRenderer renderer;
 
-    public MapsPanel(Supplier<WorldRenderer> renderer) {
-        this.renderer = renderer;
+    public MapsPanel() {
         initComponents();
 
         mapsTable.getSelectionModel().addListSelectionListener(l -> {
             final var selected = mapsTable.getSelectedRows();
             mapDisplay.setIcon((selected.length == 1) ? new ImageIcon(
                         model.maps.get(selected[0]).createImage()) : null);
-            final var r = renderer.get();
-            if(r == null)
+            if(renderer == null)
                 return;
-            r.highlight(IntStream.of(selected)
+            renderer.highlight(IntStream.of(selected)
                 .mapToObj(model.maps::get)
                 .flatMap(map -> {
                     final var x = map.getX();
@@ -42,7 +40,9 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
                     final var scale = map.getScale();
                     if(x == null || z == null || scale == null)
                         return Stream.empty();
-                    return Stream.of(new MapHighlightEntry(map, x, z, scale));
+                    final var size = 128 << scale;
+                    return Stream.of(new MapHighlightEntry(map,
+                            x - size/2, z - size/2, size));
                 }));
         });
     }
@@ -59,7 +59,8 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
     }
 
     @Override
-    public void setWorld(World world) {
+    public void setWorld(World world, WorldRenderer renderer) {
+        this.renderer = renderer;
         model.maps = new ArrayList<>(world.getMaps().values());
         model.fireTableDataChanged();
     }
@@ -157,41 +158,39 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
         final MCMap map;
         final int x;
         final int z;
-        final int scale;
+        final int size;
 
-        public MapHighlightEntry(MCMap map, int x, int z, int scale) {
+        public MapHighlightEntry(MCMap map, int x, int z, int size) {
             this.map = map;
             this.x = x;
             this.z = z;
-            this.scale = scale;
+            this.size = size;
         }
 
         @Override
         public int getX() {
-            return x - (64 << scale);
+            return x;
         }
 
         @Override
         public int getZ() {
-            return z - (64 << scale);
+            return z;
         }
 
         @Override
         public int getWidth() {
-            return 128 << scale;
+            return size;
         }
 
         @Override
         public int getHeight() {
-            return 128 << scale;
+            return size;
         }
 
         @Override
         public String toString() {
-            final int areaX = getX();
-            final int areaZ = getZ();
-            return "Map " + map.getIndex() + " for <" + areaX+ ", " + areaZ +
-                    "> to <" + (areaX + getWidth()) + ", " + (areaZ + getHeight()) + '>';
+            return "Map " + map.getIndex() + " for <" + x + ", " + z +
+                    "> to <" + (x + size) + ", " + (z + size) + '>';
         }
 
         @Override

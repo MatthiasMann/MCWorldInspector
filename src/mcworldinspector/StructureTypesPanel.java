@@ -22,8 +22,7 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
     private Set<String> structureTypes = Collections.emptySet();
 
-    public StructureTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public StructureTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
@@ -34,8 +33,8 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(Chunk::structureTypes)
                     .collect(Collectors.toCollection(TreeSet::new));

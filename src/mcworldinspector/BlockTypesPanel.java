@@ -1,6 +1,5 @@
 package mcworldinspector;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.event.ActionEvent;
@@ -11,7 +10,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.AbstractAction;
@@ -38,8 +36,7 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     private final JLabel upperLabel = new JLabel();
     private Set<String> blockTypes = Collections.emptySet();
 
-    public BlockTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public BlockTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
 
         lowerLabel.setLabelFor(subChunkSlider);
@@ -79,8 +76,8 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks()
                     .flatMap(Chunk::subChunks)

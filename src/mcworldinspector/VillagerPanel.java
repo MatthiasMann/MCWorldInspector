@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -26,8 +25,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
     private Set<String> professions = Collections.emptySet();
 
-    public VillagerPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public VillagerPanel(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
@@ -38,8 +36,8 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks()
                     .flatMap(chunk -> chunk.getEntities(MINECRAFT_VILLAGER))

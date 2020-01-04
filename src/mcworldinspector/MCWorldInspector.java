@@ -91,15 +91,15 @@ public class MCWorldInspector extends javax.swing.JFrame {
         renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
         highlightListPanel = new HighlightListPanel();
         infoPanels = new TreeMap<>();
-        infoPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
-        infoPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
-        infoPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
-        infoPanels.put("Villagers", new VillagerPanel(this::getRenderer, workerPool));
-        infoPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer, workerPool));
-        infoPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
-        infoPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));
-        infoPanels.put("Misc", new SimpleThingsPanel(this::getRenderer, workerPool));
-        infoPanels.put("Maps", new MapsPanel(this::getRenderer));
+        infoPanels.put("Blocks", new BlockTypesPanel(workerPool));
+        infoPanels.put("Entities", new EntityTypesPanel(workerPool));
+        infoPanels.put("Sheep", new SheepColorPanel(workerPool));
+        infoPanels.put("Villagers", new VillagerPanel(workerPool));
+        infoPanels.put("Tile Entities", new TileEntityTypesPanel(workerPool));
+        infoPanels.put("Biomes", new BiomeTypesPanel(workerPool));
+        infoPanels.put("Structures", new StructureTypesPanel(workerPool));
+        infoPanels.put("Misc", new SimpleThingsPanel(workerPool));
+        infoPanels.put("Maps", new MapsPanel());
 
         EventQueue.invokeLater(() -> {
             if(!loadBlockColorMap(preferences.get(ACTIVE_COLOR_MAP_KEY, "")))
@@ -250,7 +250,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.setViewportView(renderer);
         renderChunks();
         highlightListPanel.setRenderer(renderer);
-        infoPanels.values().forEach(p -> p.setWorld(world));
+        infoPanels.values().forEach(p -> p.setWorld(world, renderer));
         MouseAdapter ma = new MouseAdapter() {
             private int startMouseX;
             private int startMouseY;
@@ -681,7 +681,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
     public interface InfoPanel {
         public void reset();
-        public void setWorld(World world);
+        public void setWorld(World world, WorldRenderer renderer);
         public JComponent getTabComponent();
     }
 }

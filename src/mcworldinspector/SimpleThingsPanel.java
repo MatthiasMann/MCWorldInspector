@@ -25,12 +25,11 @@ import mcworldinspector.utils.AsyncExecution;
  */
 public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPanel {
     private final ExecutorService executorService;
-    private final Supplier<WorldRenderer> renderer;
     private World world;
+    private WorldRenderer renderer;
     private ChestSearchDialog searchChestDlg;
 
-    public SimpleThingsPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        this.renderer = renderer;
+    public SimpleThingsPanel(ExecutorService executorService) {
         this.executorService = executorService;
         initComponents();
     }
@@ -42,12 +41,13 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
 
     @Override
     public void reset() {
-        setWorld(null);
+        setWorld(null, null);
     }
 
     @Override
-    public void setWorld(World world) {
+    public void setWorld(World world, WorldRenderer renderer) {
         this.world = world;
+        this.renderer = renderer;
         this.searchChestDlg = null;
         boolean enabled = world != null;
         btnLootChests.setEnabled(enabled);
@@ -157,24 +157,19 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnSlimeChunksActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSlimeChunksActionPerformed
-        final WorldRenderer r = renderer.get();
-        if(r != null) {
+        if(renderer != null) {
             long seed = world.getRandomSeed();
-            r.highlight(world.chunks().filter(c -> c.isSlimeChunk(seed))
+            renderer.highlight(world.chunks().filter(c -> c.isSlimeChunk(seed))
                         .map(ChunkHighlightEntry::new));
         }
     }//GEN-LAST:event_btnSlimeChunksActionPerformed
 
     private void btnPlayerPosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPlayerPosActionPerformed
-        final WorldRenderer r = renderer.get();
-        if(r != null)
-            r.highlight(ChunkHighlightEntry.of(world.getPlayerChunk()));
+        highlight(ChunkHighlightEntry.of(world.getPlayerChunk()));
     }//GEN-LAST:event_btnPlayerPosActionPerformed
 
     private void btnSpawnChunkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSpawnChunkActionPerformed
-        final WorldRenderer r = renderer.get();
-        if(r != null)
-            r.highlight(ChunkHighlightEntry.of(world.getSpawnChunk()));
+        highlight(ChunkHighlightEntry.of(world.getSpawnChunk()));
     }//GEN-LAST:event_btnSpawnChunkActionPerformed
 
     private void btnSearchChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchChestsActionPerformed
@@ -217,16 +212,13 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     }//GEN-LAST:event_btnLootChestsActionPerformed
 
     private void btnTulpisActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTulpisActionPerformed
-        final WorldRenderer r = renderer.get();
-        if(r == null)
-            return;
         final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
         Optional<Biome> optPlains = biomeRegistry.values().stream()
                 .filter(b -> "minecraft:plains".equals(b.namespacedID)).findAny();
         if(optPlains.isPresent()) {
             final Noise noise = new Noise(new Random(2345));
             int plainsID = optPlains.get().numericID;
-            r.highlight(world.getChunks().parallelStream().flatMap(chunk -> {
+            highlight(world.getChunks().parallelStream().flatMap(chunk -> {
                 final int chunkX = chunk.getGlobalX() << 4;
                 final int chunkZ = chunk.getGlobalZ() << 4;
                 final NBTIntArray biomes = chunk.getBiomes();
@@ -246,14 +238,16 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
                 return og.stream();
             }));
         } else
-            r.highlight(Stream.empty());
+            highlight(Stream.empty());
     }//GEN-LAST:event_btnTulpisActionPerformed
 
+    private void highlight(Stream<? extends WorldRenderer.HighlightEntry> highlights) {
+        if(renderer != null)
+            renderer.highlight(highlights);
+    }
+
     private void highlightTileEntity(final Predicate<NBTTagCompound> filter, final String title) {
-        final WorldRenderer r = renderer.get();
-        if(r == null)
-            return;
-        r.highlight(world.chunks().filter(chunk ->
+        highlight(world.chunks().filter(chunk ->
                 chunk.tileEntities().anyMatch(filter))
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override

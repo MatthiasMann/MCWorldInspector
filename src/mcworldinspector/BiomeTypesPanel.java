@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.JCheckBox;
@@ -22,8 +21,7 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     private final JCheckBox btnExactShape = new JCheckBox();
     private Set<Biome> biomes = Collections.emptySet();
 
-    public BiomeTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public BiomeTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
 
         btnExactShape.setText("Exact biome shape (slower)");
@@ -40,8 +38,8 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(c -> c.biomes(biomeRegistry))

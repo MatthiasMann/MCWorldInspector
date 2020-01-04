@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -22,8 +21,7 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
     private Set<String> tileEntities = Collections.emptySet();
 
-    public TileEntityTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public TileEntityTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
@@ -34,8 +32,8 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(Chunk::tileEntityTypes)
                     .collect(Collectors.toCollection(TreeSet::new));

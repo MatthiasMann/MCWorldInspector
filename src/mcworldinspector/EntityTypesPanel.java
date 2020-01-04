@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -22,8 +21,7 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
     private final ExecutorService executorService;
     private Set<String> entities = Collections.emptySet();
 
-    public EntityTypesPanel(Supplier<WorldRenderer> renderer, ExecutorService executorService) {
-        super(renderer);
+    public EntityTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
@@ -34,8 +32,8 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    public void setWorld(World world) {
-        super.setWorld(world);
+    public void setWorld(World world, WorldRenderer renderer) {
+        super.setWorld(world, renderer);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(Chunk::entityTypes)
                     .collect(Collectors.toCollection(TreeSet::new));

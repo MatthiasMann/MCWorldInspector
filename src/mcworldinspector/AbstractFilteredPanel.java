@@ -2,7 +2,6 @@ package mcworldinspector;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.GroupLayout;
@@ -20,19 +19,17 @@ import mcworldinspector.utils.SimpleListModel;
  * @author matthias
  */
 public abstract class AbstractFilteredPanel<T> extends JPanel implements MCWorldInspector.InfoPanel {
-    private final Supplier<WorldRenderer> renderer;
     private final JTextField filterTF = new JTextField();
     private final JList<T> list = new JList<>();
     protected World world;
+    protected WorldRenderer renderer;
     protected final GroupLayout layout;
     protected final GroupLayout.ParallelGroup horizontal;
     protected final GroupLayout.SequentialGroup vertical;
     
     @SuppressWarnings("OverridableMethodCallInConstructor")
-    public AbstractFilteredPanel(Supplier<WorldRenderer> renderer) {
+    public AbstractFilteredPanel() {
         super(null);
-
-        this.renderer = renderer;
 
         list.addListSelectionListener(e -> doHighlighting());
         filterTF.getDocument().addDocumentListener(new DocumentChangedListener() {
@@ -57,10 +54,9 @@ public abstract class AbstractFilteredPanel<T> extends JPanel implements MCWorld
     }
 
     protected void doHighlighting() {
-        final WorldRenderer r = renderer.get();
-        if(world != null && r != null) {
+        if(renderer != null) {
             final List<T> selected = list.getSelectedValuesList();
-            r.highlight(selected.isEmpty() ?
+            renderer.highlight(selected.isEmpty() ?
                     Stream.empty() : createHighlighter(selected));
         }
     }
@@ -78,12 +74,14 @@ public abstract class AbstractFilteredPanel<T> extends JPanel implements MCWorld
     @Override
     public void reset() {
         world = null;
+        renderer = null;
         buildListModel();
     }
 
     @Override
-    public void setWorld(World world) {
+    public void setWorld(World world, WorldRenderer renderer) {
         this.world = world;
+        this.renderer = renderer;
     }
 
     protected abstract List<T> filteredList(String filter);
