@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.JComponent;
@@ -50,7 +49,6 @@ public class WorldRenderer extends JComponent {
     private List<HighlightEntry> highlights = Collections.emptyList();
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
     private final Timer highlight_timer;
-    private HighlightSelector highlightSelector;
     private HighlightEntry flash;
     private FlashMode flashMode = FlashMode.RESET;
     private int zoom = 1;
@@ -230,39 +228,39 @@ public class WorldRenderer extends JComponent {
         return highlights_model;
     }
 
-    public HighlightSelector getHighlightSelector() {
-        return highlightSelector;
-    }
-
-    public void highlight(HighlightSelector selector) {
+    public void highlight(Stream<? extends HighlightEntry> highlights) {
         highlights_model.setList(Collections.emptyList());
-        highlights = selector.apply(world).collect(Collectors.toList());
-        if(highlights.isEmpty()) {
-            highlightSelector = null;
+        this.highlights = highlights.collect(Collectors.toList());
+        if(this.highlights.isEmpty()) {
             highlight_timer.stop();
         } else {
-            highlightSelector = selector;
-            highlights_model.setList(highlights);
+            highlights_model.setList(this.highlights);
             highlight_timer.start();
         }
         repaint();
     }
 
-    public void scrollTo(Chunk chunk, boolean center) {
-        final int zoom16 = zoom * 16;
-        Rectangle r = new Rectangle(
-                (chunk.getGlobalX() - min_x) * zoom16,
-                (chunk.getGlobalZ() - min_z) * zoom16, zoom16, zoom16);
+    private void scrollTo(Rectangle r, boolean center) {
+        r.translate(min_x * -16, min_z * -16);
+        r.x *= zoom;
+        r.y *= zoom;
+        r.width *= zoom;
+        r.height *= zoom;
         final Container parent = getParent();
         if(center && parent instanceof JViewport)
             r.grow((parent.getWidth() - r.width) / 2, (parent.getHeight() - r.height) / 2);
         else
-            r.grow(zoom16, zoom16);
+            r.grow(zoom * 16, zoom * 16);
         scrollRectToVisible(r);
     }
 
+    public void scrollTo(Chunk chunk, boolean center) {
+        scrollTo(new Rectangle(chunk.getGlobalX() << 4, chunk.getGlobalZ() << 4,
+                16, 16), center);
+    }
+
     public void scrollTo(HighlightEntry e) {
-        scrollTo(e.chunk, false);
+        scrollTo(e.getRectangle(), false);
         flash = e;
         flashMode = FlashMode.RESET;
         highlight_timer.restart();
@@ -415,7 +413,25 @@ public class WorldRenderer extends JComponent {
                 ((((colorA      ) & 0xFF) * ((colorB      ) & 0xFF) / 255)      );
     }
 
-    public static interface HighlightSelector extends Function<World, Stream<? extends HighlightEntry>> {
-        default public void showDetailsFor(Component parent, HighlightEntry entry) {}
+    public interface HighlightEntry {
+        public int getX();
+        public int getZ();
+        public int getWidth();
+        public int getHeight();
+        public default Rectangle getRectangle() {
+            return new Rectangle(getX(), getZ(), getWidth(), getHeight());
+        }
+        public default boolean contains(Point p) {
+            final int x = getX();
+            final int z = getZ();
+            return (p.x >= x && p.x < x + getWidth()) &&
+                    (p.y >= z && p.y < z + getHeight());
+        }
+
+        public default void paint(Graphics g, int zoom) {
+            g.fillRect(getX() * zoom, getZ() * zoom,
+                    getWidth() * zoom, getHeight() * zoom);
+        }
+        public default void showDetailsFor(Component parent) {}
     }
 }

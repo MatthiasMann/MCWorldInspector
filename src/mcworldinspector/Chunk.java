@@ -1,6 +1,7 @@
 package mcworldinspector;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -256,7 +257,14 @@ public class Chunk extends XZPosition {
         return e -> e.getStringAsStream("id");
     }
 
-    private static Predicate<NBTTagCompound> filterByID(String id) {
+    public static Predicate<NBTTagCompound> filterByID(String id) {
         return v -> id.equals(v.getString("id"));
+    }
+
+    public static Predicate<NBTTagCompound> filterByID(Collection<String> ids) {
+        return v -> {
+            final var id = v.getString("id");
+            return id != null && ids.contains(id);
+        };
     }
 }

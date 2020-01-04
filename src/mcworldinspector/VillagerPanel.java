@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,11 +34,12 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
     @Override
     public void reset() {
         professions = Collections.emptySet();
-        buildListModel();
+        super.reset();
     }
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks()
                     .flatMap(chunk -> chunk.getEntities(MINECRAFT_VILLAGER))
@@ -60,35 +62,20 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    protected WorldRenderer.HighlightSelector createHighlighter(List<String> selected) {
-        return new Highlighter(selected);
-    }
-    
-    public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final List<String> professions;
-
-        public Highlighter(List<String> professions) {
-            this.professions = professions;
-        }
-
-        private boolean filter(NBTTagCompound villager) {
-            return professions.contains(getProfession(villager));
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.getEntities(MINECRAFT_VILLAGER)
-                            .anyMatch(this::filter))
-                    .map(HighlightEntry::new);
-        }
-
-        @Override
-        public void showDetailsFor(Component parent, HighlightEntry entry) {
-            NBTTagList<NBTTagCompound> result = entry.chunk
-                    .getEntities(MINECRAFT_VILLAGER).filter(this::filter)
-                    .collect(NBTTagList.toTagList(NBTTagCompound.class));
-            NBTTreeModel.displayNBT(parent, result, "Villager details for " + entry);
-        }
+    protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<String> selected) {
+        final Predicate<NBTTagCompound> filter = villager ->
+                professions.contains(getProfession(villager));
+        return world.getChunks().parallelStream()
+                .filter(chunk -> chunk.getEntities(MINECRAFT_VILLAGER)
+                        .anyMatch(filter))
+                .map(chunk -> new ChunkHighlightEntry(chunk) {
+                    @Override
+                    public void showDetailsFor(Component parent) {
+                        NBTTagList<NBTTagCompound> result = chunk
+                                .getEntities(MINECRAFT_VILLAGER).filter(filter)
+                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
+                        NBTTreeModel.displayNBT(parent, result, "Villager details for " + this);
+                    }
+                });
     }
 }

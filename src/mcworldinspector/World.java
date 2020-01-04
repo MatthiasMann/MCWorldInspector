@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -25,6 +26,7 @@ import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.Expected;
 import mcworldinspector.utils.FileError;
 import mcworldinspector.utils.FileHelpers;
+import mcworldinspector.utils.IOExceptionWithFile;
 
 /**
  *
@@ -35,6 +37,7 @@ public class World {
     private NBTTagCompound level = NBTTagCompound.EMPTY;
     private Map<Integer, Biome> biomeRegistry = Collections.emptyMap();
     private final HashMap<XZPosition, Chunk> chunks = new HashMap<>();
+    private final TreeMap<Integer, MCMap> maps = new TreeMap<>();
 
     private World() {
     }
@@ -60,6 +63,10 @@ public class World {
 
     public Collection<Chunk> getChunks() {
         return chunks.values();
+    }
+
+    public TreeMap<Integer, MCMap> getMaps() {
+        return maps;
     }
 
     public Chunk getChunk(int x, int y) {
@@ -154,8 +161,32 @@ public class World {
                             incProgress(1);
                             checkDone();
                         });
+                File[] maps = new File(levelDatFile.getParentFile(), "data")
+                        .listFiles((dir, fileName) -> fileName.startsWith("map_")
+                                && fileName.endsWith(".dat"));
+                total += AsyncExecution.<MCMap>submit(executor, Arrays.stream(maps)
+                        .map(file -> () -> {
+                            try {
+                                return MCMap.loadMap(file);
+                            } catch(IOException ex) {
+                                throw new IOExceptionWithFile(file, ex);
+                            }
+                        }), results -> {
+                            results.forEach(Expected.consumer(map -> {
+                                if(map != null && map.getIndex() >= 0)
+                                    world.maps.put(map.getIndex(), map);
+                            }, e -> {
+                                if(e instanceof IOExceptionWithFile) {
+                                    IOExceptionWithFile ex = (IOExceptionWithFile) e;
+                                    errors.add(new FileError(ex.getFile(), ex.getCause()));
+                                }
+                            }));
+                            incProgress(results.size());
+                            checkDone();
+                        });
             }
 
+            propertyChangeSupport.firePropertyChange("total", 0, total);
             submitAsyncLoads();
             return true;
         }

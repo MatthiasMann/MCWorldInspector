@@ -75,11 +75,12 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     @Override
     public void reset() {
         blockTypes = Collections.emptySet();
-        buildListModel();
+        super.reset();
     }
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks()
                     .flatMap(Chunk::subChunks)
@@ -100,76 +101,61 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    protected WorldRenderer.HighlightSelector createHighlighter(List<String> selected) {
-        return new Highlighter(selected, subChunkSlider.getLower(), subChunkSlider.getUpper());
+    protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<String> selected) {
+        final var lower = subChunkSlider.getLower();
+        final var upper = subChunkSlider.getUpper();
+        return world.getChunks().parallelStream()
+                .filter(chunk -> chunk.subChunks(lower, upper)
+                        .flatMap(SubChunk::getBlockTypes)
+                        .anyMatch(selected::contains))
+                .map(chunk -> new ChunkHighlightEntry(chunk) {
+                    @Override
+                    public void showDetailsFor(Component parent) {
+                        showDetails(parent, this, lower, upper, selected);
+                    }
+                });
     }
     
-    public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final List<String> blockTypes;
-        private final int lower;
-        private final int upper;
-
-        public Highlighter(List<String> blockTypes, int lower, int upper) {
-            this.blockTypes = blockTypes;
-            this.lower = lower;
-            this.upper = upper;
-        }
-
-        public List<String> getBlockTypes() {
-            return blockTypes;
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.subChunks(lower, upper)
-                            .flatMap(SubChunk::getBlockTypes)
-                            .anyMatch(blockTypes::contains))
-                    .map(HighlightEntry::new);
-        }
-
-        @Override
-        public void showDetailsFor(Component parent, HighlightEntry entry) {
-            final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
-            final int x = entry.chunk.x << 4;
-            final int z = entry.chunk.z << 4;
-            entry.chunk.subChunks(lower, upper).flatMap(sc ->
-                    sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
-                    .forEach(b -> blocks.computeIfAbsent(b.y, ArrayList::new).add(b));
-            final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);
-            final JTree tree = new JTree(model);
-            tree.setRootVisible(false);
-            tree.setShowsRootHandles(true);
-            if(model.getChildCount(model.getRoot()) == 1)
-                tree.expandRow(0);
-            final JScrollPane sp = new JScrollPane(tree);
-            final JDialog dlg = new JDialog(SwingUtilities.getWindowAncestor(parent),
-                    "Block details for " + entry, Dialog.ModalityType.DOCUMENT_MODAL);
-            final JButton btnOk = new JButton(new AbstractAction("Ok") {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    dlg.dispose();
-                }
-            });
-            final GroupLayout layout = new GroupLayout(dlg.getContentPane());
-            layout.setHorizontalGroup(layout.createSequentialGroup()
-                    .addContainerGap()
-                    .addGroup(layout.createParallelGroup()
-                        .addComponent(sp, 600, 1000, Short.MAX_VALUE)
-                        .addGroup(layout.createSequentialGroup()
-                            .addGap(0, 0, Short.MAX_VALUE)
-                            .addComponent(btnOk)))
-                    .addContainerGap());
-            layout.setVerticalGroup(layout.createSequentialGroup()
-                    .addContainerGap()
-                    .addComponent(sp, 400, 1000, Short.MAX_VALUE)
-                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                    .addComponent(btnOk)
-                    .addContainerGap());
-            dlg.getContentPane().setLayout(layout);
-            dlg.setLocationByPlatform(true);
-            dlg.pack();
-            dlg.setVisible(true);
-        }
+    private static void showDetails(Component parent, ChunkHighlightEntry entry, int lower, int upper, List<String> blockTypes) {
+        final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
+        final int x = entry.chunk.x << 4;
+        final int z = entry.chunk.z << 4;
+        entry.chunk.subChunks(lower, upper).flatMap(sc ->
+                sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
+                .forEach(b -> blocks.computeIfAbsent(b.y, ArrayList::new).add(b));
+        final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);
+        final JTree tree = new JTree(model);
+        tree.setRootVisible(false);
+        tree.setShowsRootHandles(true);
+        if(model.getChildCount(model.getRoot()) == 1)
+            tree.expandRow(0);
+        final JScrollPane sp = new JScrollPane(tree);
+        final JDialog dlg = new JDialog(SwingUtilities.getWindowAncestor(parent),
+                "Block details for " + entry, Dialog.ModalityType.DOCUMENT_MODAL);
+        final JButton btnOk = new JButton(new AbstractAction("Ok") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dlg.dispose();
+            }
+        });
+        final GroupLayout layout = new GroupLayout(dlg.getContentPane());
+        layout.setHorizontalGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup()
+                    .addComponent(sp, 600, 1000, Short.MAX_VALUE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(btnOk)))
+                .addContainerGap());
+        layout.setVerticalGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(sp, 400, 1000, Short.MAX_VALUE)
+                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnOk)
+                .addContainerGap());
+        dlg.getContentPane().setLayout(layout);
+        dlg.setLocationByPlatform(true);
+        dlg.pack();
+        dlg.setVisible(true);
     }
 }

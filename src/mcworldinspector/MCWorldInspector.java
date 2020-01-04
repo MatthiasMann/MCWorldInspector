@@ -25,6 +25,7 @@ import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -61,8 +62,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final Preferences preferences;
     private final ExecutorService workerPool;
     private final JScrollPane mainarea = new JScrollPane();
-    private final TreeMap<String, AbstractFilteredPanel<?>> filteredPanels;
-    private final SimpleThingsPanel simpleThingsPanel;
+    private final TreeMap<String, InfoPanel> infoPanels;
     private final RenderOptionsPanel renderOptionsPanel;
     private final HighlightListPanel highlightListPanel;
     private final StatusBar statusBar = new StatusBar();
@@ -88,17 +88,18 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
 
-        simpleThingsPanel = new SimpleThingsPanel(this::getRenderer, workerPool);
         renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
         highlightListPanel = new HighlightListPanel();
-        filteredPanels = new TreeMap<>();
-        filteredPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Villagers", new VillagerPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
-        filteredPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));
+        infoPanels = new TreeMap<>();
+        infoPanels.put("Blocks", new BlockTypesPanel(this::getRenderer, workerPool));
+        infoPanels.put("Entities", new EntityTypesPanel(this::getRenderer, workerPool));
+        infoPanels.put("Sheep", new SheepColorPanel(this::getRenderer, workerPool));
+        infoPanels.put("Villagers", new VillagerPanel(this::getRenderer, workerPool));
+        infoPanels.put("Tile Entities", new TileEntityTypesPanel(this::getRenderer, workerPool));
+        infoPanels.put("Biomes", new BiomeTypesPanel(this::getRenderer, workerPool));
+        infoPanels.put("Structures", new StructureTypesPanel(this::getRenderer, workerPool));
+        infoPanels.put("Misc", new SimpleThingsPanel(this::getRenderer, workerPool));
+        infoPanels.put("Maps", new MapsPanel(this::getRenderer));
 
         EventQueue.invokeLater(() -> {
             if(!loadBlockColorMap(preferences.get(ACTIVE_COLOR_MAP_KEY, "")))
@@ -197,17 +198,20 @@ public class MCWorldInspector extends javax.swing.JFrame {
         renderer = null;
         world = null;
         mainarea.setViewportView(null);
-        filteredPanels.values().forEach(AbstractFilteredPanel::reset);
-        simpleThingsPanel.setWorld(null);
+        infoPanels.values().forEach(InfoPanel::reset);
         highlightListPanel.setRenderer(null);
         firePropertyChange("world", oldWorld, world);
     }
 
     private void reloadWorld() {
+        if(world == null)
+            return;
         Point scrollPos = mainarea.getViewport().getViewPosition();
-        loadWorld(world != null 
-                ? () -> mainarea.getViewport().setViewPosition(scrollPos)
-                : this::scrollToPlayerorSpawn);
+        int zoom = renderer.getZoom();
+        loadWorld(() -> {
+            renderer.setZoom(zoom);
+            mainarea.getViewport().setViewPosition(scrollPos);
+        });
     }
 
     private void loadWorld(Runnable postLoadCB) {
@@ -246,8 +250,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.setViewportView(renderer);
         renderChunks();
         highlightListPanel.setRenderer(renderer);
-        simpleThingsPanel.setWorld(world);
-        filteredPanels.values().forEach(p -> p.setWorld(world));
+        infoPanels.values().forEach(p -> p.setWorld(world));
         MouseAdapter ma = new MouseAdapter() {
             private int startMouseX;
             private int startMouseY;
@@ -415,14 +418,18 @@ public class MCWorldInspector extends javax.swing.JFrame {
             preferences.put("recent_folder_nbt", jfc.getCurrentDirectory().getAbsolutePath());
             final File file = jfc.getSelectedFile();
             try {
-                final var buffer = FileHelpers.loadFile(file, 1<<20);
-                final var nbt = NBTTagCompound.parseGuess(buffer);
-                final var img = MCMapRender.mapToImage(nbt);
-                JOptionPane.showMessageDialog(this, (img != null) ?
-                        new ImageIcon(img) : "Not a Minecraft map file",
-                        "Map " + file, (img != null)
-                                ? JOptionPane.INFORMATION_MESSAGE
-                                : JOptionPane.ERROR_MESSAGE);
+                final var map = MCMap.loadMap(file);
+                if(map != null) {
+                    JOptionPane.showMessageDialog(this,
+                            new ImageIcon(map.createImage()),
+                            "Map " + map.getIndex(),
+                            JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "Not a Minecraft map file",
+                            file.getAbsolutePath(),
+                            JOptionPane.ERROR_MESSAGE);
+                }
             } catch(Exception ex) {
                 MultipleErrorsDialog.show(this, "Errors while loading " + file,
                         true, new FileError(file, ex));
@@ -547,8 +554,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         setJMenuBar(createMenuBar());
 
         JTabbedPane tabbed = new JTabbedPane();
-        filteredPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue()));
-        tabbed.add("Misc", simpleThingsPanel);
+        infoPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue().getTabComponent()));
         tabbed.add("Render Options", renderOptionsPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);
@@ -671,5 +677,11 @@ public class MCWorldInspector extends javax.swing.JFrame {
                     ACTIVE_COLOR_MAP_KEY, file.getAbsolutePath()));
             dlg.setVisible(true);
         }
+    }
+
+    public interface InfoPanel {
+        public void reset();
+        public void setWorld(World world);
+        public JComponent getTabComponent();
     }
 }

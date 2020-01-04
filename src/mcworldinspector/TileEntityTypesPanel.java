@@ -30,11 +30,12 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
     @Override
     public void reset() {
         tileEntities = Collections.emptySet();
-        buildListModel();
+        super.reset();
     }
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(Chunk::tileEntityTypes)
                     .collect(Collectors.toCollection(TreeSet::new));
@@ -50,35 +51,17 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     @Override
-    protected WorldRenderer.HighlightSelector createHighlighter(List<String> selected) {
-        return new Highlighter(selected);
-    }
-    
-    public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final List<String> entities;
-
-        public Highlighter(List<String> entities) {
-            this.entities = entities;
-        }
-
-        public List<String> getEntities() {
-            return entities;
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.tileEntityTypes().anyMatch(entities::contains))
-                    .map(HighlightEntry::new);
-        }
-
-        @Override
-        public void showDetailsFor(Component parent, HighlightEntry entry) {
-            NBTTagList<NBTTagCompound> result = entities.stream()
-                    .flatMap(entry.chunk::getTileEntities)
-                    .filter(nbt -> !nbt.isEmpty())
-                    .collect(NBTTagList.toTagList(NBTTagCompound.class));
-            NBTTreeModel.displayNBT(parent, result, "Tile entity details for " + entry);
-        }
+    protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<String> selected) {
+        return world.getChunks().parallelStream()
+                .filter(chunk -> chunk.tileEntityTypes().anyMatch(selected::contains))
+                .map(chunk -> new ChunkHighlightEntry(chunk) {
+                    @Override
+                    public void showDetailsFor(Component parent) {
+                        NBTTagList<NBTTagCompound> result = chunk.tileEntities()
+                                .filter(Chunk.filterByID(selected))
+                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
+                        NBTTreeModel.displayNBT(parent, result, "Tile entity details for " + this);
+                    }
+                });
     }
 }

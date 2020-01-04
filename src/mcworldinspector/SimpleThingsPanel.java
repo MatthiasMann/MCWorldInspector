@@ -10,6 +10,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -21,7 +23,7 @@ import mcworldinspector.utils.AsyncExecution;
  *
  * @author matthias
  */
-public class SimpleThingsPanel extends javax.swing.JPanel {
+public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPanel {
     private final ExecutorService executorService;
     private final Supplier<WorldRenderer> renderer;
     private World world;
@@ -33,6 +35,17 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         initComponents();
     }
 
+    @Override
+    public JComponent getTabComponent() {
+        return this;
+    }
+
+    @Override
+    public void reset() {
+        setWorld(null);
+    }
+
+    @Override
     public void setWorld(World world) {
         this.world = world;
         this.searchChestDlg = null;
@@ -145,34 +158,23 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
 
     private void btnSlimeChunksActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSlimeChunksActionPerformed
         final WorldRenderer r = renderer.get();
-        if(r != null)
-            r.highlight(world -> {
-                long seed = world.getRandomSeed();
-                return world.chunks().filter(c -> c.isSlimeChunk(seed))
-                        .map(HighlightEntry::new);
-            });
+        if(r != null) {
+            long seed = world.getRandomSeed();
+            r.highlight(world.chunks().filter(c -> c.isSlimeChunk(seed))
+                        .map(ChunkHighlightEntry::new));
+        }
     }//GEN-LAST:event_btnSlimeChunksActionPerformed
 
     private void btnPlayerPosActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPlayerPosActionPerformed
         final WorldRenderer r = renderer.get();
         if(r != null)
-            r.highlight(w -> {
-                Chunk chunk = w.getPlayerChunk();
-                if(chunk != null)
-                    return Stream.of(new HighlightEntry(chunk));
-                return Stream.empty();
-            });
+            r.highlight(ChunkHighlightEntry.of(world.getPlayerChunk()));
     }//GEN-LAST:event_btnPlayerPosActionPerformed
 
     private void btnSpawnChunkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSpawnChunkActionPerformed
         final WorldRenderer r = renderer.get();
         if(r != null)
-            r.highlight(w -> {
-                Chunk chunk = w.getSpawnChunk();
-                if(chunk != null)
-                    return Stream.of(new HighlightEntry(chunk));
-                return Stream.empty();
-            });
+            r.highlight(ChunkHighlightEntry.of(world.getSpawnChunk()));
     }//GEN-LAST:event_btnSpawnChunkActionPerformed
 
     private void btnSearchChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchChestsActionPerformed
@@ -195,12 +197,9 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
         if(!searchChestDlg.run())
             return;
         final String item = searchChestDlg.getItem();
-        final WorldRenderer r = renderer.get();
-        if(r == null)
-            return;
         final Predicate<NBTTagCompound> itemPred =
                 i -> item.equals(i.getString("id"));
-        r.highlight(new TileEntityHighlighter(tile -> {
+        highlightTileEntity(tile -> {
             Stream<NBTTagCompound> items = Stream.concat(
                     tile.getList("Items", NBTTagCompound.class).stream(),
                     tile.getList("inventory", NBTTagCompound.class).stream());
@@ -209,75 +208,62 @@ public class SimpleThingsPanel extends javax.swing.JPanel {
                 items = Stream.concat(items, drawers.stream()
                         .map(d -> d.getCompound("Item")));
             return items.anyMatch(itemPred);
-        }, "Chests containing " + item));
+        }, "Chests containing " + item);
     }//GEN-LAST:event_btnSearchChestsActionPerformed
 
     private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed
-        final WorldRenderer r = renderer.get();
-        if(r == null)
-            return;
-        r.highlight(new TileEntityHighlighter(
-                t -> t.getString("LootTable") != null,
-                "Loot chests details for "));
+        highlightTileEntity(t -> t.getString("LootTable") != null,
+                "Loot chests details for ");
     }//GEN-LAST:event_btnLootChestsActionPerformed
 
     private void btnTulpisActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTulpisActionPerformed
         final WorldRenderer r = renderer.get();
         if(r == null)
             return;
-        final Noise noise = new Noise(new Random(2345));
-        r.highlight(w -> {
-            final Map<Integer, Biome> biomeRegistry = w.getBiomeRegistry();
-            Optional<Biome> optPlains = biomeRegistry.values().stream()
-                    .filter(b -> "minecraft:plains".equals(b.namespacedID)).findAny();
-            if(optPlains.isPresent()) {
-                int plainsID = optPlains.get().numericID;
-                return w.getChunks().parallelStream().flatMap(chunk -> {
-                    final int chunkX = chunk.getGlobalX() << 4;
-                    final int chunkZ = chunk.getGlobalZ() << 4;
-                    final NBTIntArray biomes = chunk.getBiomes();
-                    final HighlightEntry.WithOverlay og =
-                            new HighlightEntry.WithOverlay(chunk);
-                    for(int idx=0 ; idx<256 ; ++idx) {
-                        if(biomes.getInt(idx) == plainsID) {
-                            final int x = idx & 15;
-                            final int z = idx >> 4;
-                            final double value = noise.nose2d(
-                                    (chunkX + x) / 200.0,
-                                    (chunkZ + z) / 200.0);
-                            if(value < -0.8)
-                                og.setRGB(x, z, 0xFFFF0000);
-                        }
+        final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
+        Optional<Biome> optPlains = biomeRegistry.values().stream()
+                .filter(b -> "minecraft:plains".equals(b.namespacedID)).findAny();
+        if(optPlains.isPresent()) {
+            final Noise noise = new Noise(new Random(2345));
+            int plainsID = optPlains.get().numericID;
+            r.highlight(world.getChunks().parallelStream().flatMap(chunk -> {
+                final int chunkX = chunk.getGlobalX() << 4;
+                final int chunkZ = chunk.getGlobalZ() << 4;
+                final NBTIntArray biomes = chunk.getBiomes();
+                final ChunkHighlightEntry.WithOverlay og =
+                        new ChunkHighlightEntry.WithOverlay(chunk);
+                for(int idx=0 ; idx<256 ; ++idx) {
+                    if(biomes.getInt(idx) == plainsID) {
+                        final int x = idx & 15;
+                        final int z = idx >> 4;
+                        final double value = noise.nose2d(
+                                (chunkX + x) / 200.0,
+                                (chunkZ + z) / 200.0);
+                        if(value < -0.8)
+                            og.setRGB(x, z, 0xFFFF0000);
                     }
-                    return og.stream();
-                });
-            }
-            return Stream.empty();
-        });
+                }
+                return og.stream();
+            }));
+        } else
+            r.highlight(Stream.empty());
     }//GEN-LAST:event_btnTulpisActionPerformed
 
-    private static class TileEntityHighlighter implements WorldRenderer.HighlightSelector {
-        private final Predicate<NBTTagCompound> filter;
-        private final String title;
-
-        public TileEntityHighlighter(Predicate<NBTTagCompound> filter, String title) {
-            this.filter = filter;
-            this.title = title;
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.chunks().filter(chunk ->
-                    chunk.tileEntities().anyMatch(filter))
-                    .map(HighlightEntry::new);
-        }
-
-        @Override
-        public void showDetailsFor(Component parent, HighlightEntry entry) {
-            NBTTagList<NBTTagCompound> result = entry.chunk.tileEntities()
-                    .filter(filter).collect(NBTTagList.toTagList(NBTTagCompound.class));
-            NBTTreeModel.displayNBT(parent, result, title + entry);
-        }
+    private void highlightTileEntity(final Predicate<NBTTagCompound> filter, final String title) {
+        final WorldRenderer r = renderer.get();
+        if(r == null)
+            return;
+        r.highlight(world.chunks().filter(chunk ->
+                chunk.tileEntities().anyMatch(filter))
+                .map(chunk -> new ChunkHighlightEntry(chunk) {
+                    @Override
+                    public void showDetailsFor(Component parent) {
+                        NBTTagList<NBTTagCompound> result = chunk.tileEntities()
+                                .filter(filter)
+                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
+                        NBTTreeModel.displayNBT(parent, result, title + this);
+                    }
+                }));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

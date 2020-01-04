@@ -36,11 +36,12 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     @Override
     public void reset() {
         biomes = Collections.emptySet();
-        buildListModel();
+        super.reset();
     }
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks().flatMap(c -> c.biomes(biomeRegistry))
@@ -58,14 +59,14 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
     }
 
     @Override
-    protected WorldRenderer.HighlightSelector createHighlighter(List<Biome> selected) {
+    protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<Biome> selected) {
         final var bm = IntPredicateBuilder.of(selected, Biome::getNumericID);
         if(btnExactShape.isSelected()) {
-            return w -> w.getChunks().parallelStream().flatMap(chunk -> {
+            return world.getChunks().parallelStream().flatMap(chunk -> {
                 final var chunkBiomes = chunk.getBiomes();
                 if(chunkBiomes == null)
                     return Stream.empty();
-                final var og = new HighlightEntry.WithOverlay(chunk);
+                final var og = new ChunkHighlightEntry.WithOverlay(chunk);
                 for(int idx=0 ; idx<256 ; ++idx) {
                     if(bm.test(chunkBiomes.getInt(idx)))
                         og.setRGB(idx & 15, idx >> 4, 0xFFFF0000);
@@ -73,9 +74,9 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
                 return og.stream();
             });
         } else {
-            return w -> w.getChunks().parallelStream()
+            return world.getChunks().parallelStream()
                     .filter(chunk -> chunk.biomes().anyMatch(bm::test))
-                    .map(HighlightEntry::new);
+                    .map(ChunkHighlightEntry::new);
         }
     }
 }

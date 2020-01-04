@@ -3,14 +3,20 @@ package mcworldinspector;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
+import java.io.File;
+import java.io.IOException;
+import java.util.regex.Pattern;
+import java.util.zip.DataFormatException;
 import mcworldinspector.nbt.NBTByteArray;
 import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.utils.FileHelpers;
 
 /**
  *
  * @author matthias
  */
-public class MCMapRender {
+public class MCMap {
+
     private static final int[] COLORS = new int[] {
         0x00000000,
         0x00000000,
@@ -222,17 +228,58 @@ public class MCMapRender {
         0xFF130B08};
 
     private static final IndexColorModel COLOR_MODEL = new IndexColorModel(8, COLORS.length, COLORS, 0, true, 0, DataBuffer.TYPE_BYTE);
+    private static final Pattern MAP_FILENAME_PATTERN = Pattern.compile("^map_(\\d{1,6})\\.dat$");
 
-    private MCMapRender() {}
+    private final int index;
+    private final NBTTagCompound nbt;
 
-    public static BufferedImage mapToImage(NBTTagCompound nbt) {
-        NBTByteArray colors = nbt.getCompound("data")
-                .get("colors", NBTByteArray.class);
+    public MCMap(int index, NBTTagCompound nbt) {
+        this.index = index;
+        this.nbt = nbt;
+    }
+
+    public Integer getX() {
+        return nbt.getCompound("data").get("xCenter", Integer.class);
+    }
+
+    public Integer getZ() {
+        return nbt.getCompound("data").get("zCenter", Integer.class);
+    }
+
+    public Byte getScale() {
+        return nbt.getCompound("data").get("scale", Byte.class);
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public NBTTagCompound getNbt() {
+        return nbt;
+    }
+
+    public BufferedImage createImage() {
+        NBTByteArray colors = getColors(nbt);
         if(colors == null || colors.size() != 128*128)
             return null;
         final var img = new BufferedImage(128, 128,
                 BufferedImage.TYPE_BYTE_INDEXED, COLOR_MODEL);
         colors.setDataElements(img.getRaster(), 0, 0, 128, 128);
         return img;
+    }
+
+    private static NBTByteArray getColors(NBTTagCompound nbt) {
+        return nbt.getCompound("data").get("colors", NBTByteArray.class);
+    }
+
+    public static MCMap loadMap(File file) throws IOException {
+        try {
+            final var m = MAP_FILENAME_PATTERN.matcher(file.getName());
+            final int nr = m.matches() ? Integer.parseInt(m.group(1)) : -1;
+            final var nbt = NBTTagCompound.parseGZip(FileHelpers.loadFile(file, 1<<18));
+            return getColors(nbt) != null ? new MCMap(nr, nbt) : null;
+        } catch (DataFormatException ex) {
+            throw new IOException(ex);
+        }
     }
 }

@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.GroupLayout;
+import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -18,10 +19,11 @@ import mcworldinspector.utils.SimpleListModel;
  *
  * @author matthias
  */
-public abstract class AbstractFilteredPanel<T> extends JPanel {
+public abstract class AbstractFilteredPanel<T> extends JPanel implements MCWorldInspector.InfoPanel {
     private final Supplier<WorldRenderer> renderer;
     private final JTextField filterTF = new JTextField();
     private final JList<T> list = new JList<>();
+    protected World world;
     protected final GroupLayout layout;
     protected final GroupLayout.ParallelGroup horizontal;
     protected final GroupLayout.SequentialGroup vertical;
@@ -56,10 +58,10 @@ public abstract class AbstractFilteredPanel<T> extends JPanel {
 
     protected void doHighlighting() {
         final WorldRenderer r = renderer.get();
-        if(r != null) {
+        if(world != null && r != null) {
             final List<T> selected = list.getSelectedValuesList();
             r.highlight(selected.isEmpty() ?
-                    w -> Stream.empty() : createHighlighter(selected));
+                    Stream.empty() : createHighlighter(selected));
         }
     }
 
@@ -68,11 +70,24 @@ public abstract class AbstractFilteredPanel<T> extends JPanel {
         list.setModel(new SimpleListModel<>(filteredList(filter)));
     }
 
-    public abstract void reset();
-    public abstract void setWorld(World world);
+    @Override
+    public final JComponent getTabComponent() {
+        return this;
+    }
+
+    @Override
+    public void reset() {
+        world = null;
+        buildListModel();
+    }
+
+    @Override
+    public void setWorld(World world) {
+        this.world = world;
+    }
 
     protected abstract List<T> filteredList(String filter);
-    protected abstract WorldRenderer.HighlightSelector createHighlighter(List<T> selected);
+    protected abstract Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<T> selected);
     
     protected static List<String> filteredStringList(Collection<String> c, String filter) {
         return c.stream().filter(e ->

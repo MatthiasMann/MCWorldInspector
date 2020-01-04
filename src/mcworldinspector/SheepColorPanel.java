@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,11 +33,12 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
     @Override
     public void reset() {
         colors = Collections.emptySet();
-        buildListModel();
+        super.reset();
     }
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         AsyncExecution.submitNoThrow(executorService, () -> {
             return world.chunks()
                     .flatMap(chunk -> chunk.getEntities(MINECRAFT_SHEEP))
@@ -61,39 +63,20 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
     }
 
     @Override
-    protected WorldRenderer.HighlightSelector createHighlighter(List<MCColor> selected) {
-        return new Highlighter(selected);
-    }
-    
-    public static final class Highlighter implements WorldRenderer.HighlightSelector {
-        private final List<MCColor> colors;
-
-        public Highlighter(List<MCColor> colors) {
-            this.colors = colors;
-        }
-
-        public List<MCColor> getEntities() {
-            return colors;
-        }
-
-        private boolean filterColor(NBTTagCompound e) {
-            return colors.contains(MCColor.fromByte(e.get("Color", Byte.class)));
-        }
-
-        @Override
-        public Stream<HighlightEntry> apply(World world) {
-            return world.getChunks().parallelStream()
-                    .filter(chunk -> chunk.getEntities(MINECRAFT_SHEEP)
-                            .anyMatch(this::filterColor))
-                    .map(HighlightEntry::new);
-        }
-
-        @Override
-        public void showDetailsFor(Component parent, HighlightEntry entry) {
-            NBTTagList<NBTTagCompound> result = entry.chunk
-                    .getEntities(MINECRAFT_SHEEP).filter(this::filterColor)
-                    .collect(NBTTagList.toTagList(NBTTagCompound.class));
-            NBTTreeModel.displayNBT(parent, result, "Sheep details for " + entry);
-        }
+    protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<MCColor> selected) {
+        final Predicate<NBTTagCompound> filter = e -> selected.contains(
+                MCColor.fromByte(e.get("Color", Byte.class)));
+        return world.getChunks().parallelStream()
+                .filter(chunk -> chunk.getEntities(MINECRAFT_SHEEP)
+                        .anyMatch(filter))
+                .map(chunk -> new ChunkHighlightEntry(chunk) {
+                    @Override
+                    public void showDetailsFor(Component parent) {
+                        NBTTagList<NBTTagCompound> result = chunk
+                                .getEntities(MINECRAFT_SHEEP).filter(filter)
+                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
+                        NBTTreeModel.displayNBT(parent, result, "Sheep details for " + this);
+                    }
+                });
     }
 }

@@ -1,7 +1,6 @@
 package mcworldinspector;
 
 import java.awt.Graphics;
-import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.util.stream.Stream;
 
@@ -9,38 +8,44 @@ import java.util.stream.Stream;
  *
  * @author matthias
  */
-public class HighlightEntry {
+public class ChunkHighlightEntry implements WorldRenderer.HighlightEntry {
     public final Chunk chunk;
 
-    public HighlightEntry(Chunk chunk) {
+    public ChunkHighlightEntry(Chunk chunk) {
         this.chunk = chunk;
     }
 
     public int getX() {
-        return chunk.getGlobalX();
+        return chunk.getGlobalX() << 4;
     }
 
     public int getZ() {
-        return chunk.getGlobalZ();
+        return chunk.getGlobalZ() << 4;
     }
 
-    public boolean contains(Point p) {
-        return getX() == (p.x >> 4) && getZ() == (p.y >> 4);
+    @Override
+    public int getWidth() {
+        return 16;
+    }
+
+    @Override
+    public int getHeight() {
+        return 16;
     }
 
     @Override
     public String toString() {
-        final int x = getX() << 4;
-        final int z = getZ() << 4;
+        final int x = chunk.getGlobalX();
+        final int z = chunk.getGlobalZ();
         return "Chunk <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
     }
-    
-    public void paint(Graphics g, int zoom) {
-        final int zoom16 = 16 * zoom;
-        g.fillRect(getX() * zoom16, getZ() * zoom16, zoom16, zoom16);
+
+    public static Stream<ChunkHighlightEntry> of(Chunk chunk) {
+        return chunk != null ? Stream.of(new ChunkHighlightEntry(chunk))
+                : Stream.empty();
     }
 
-    public static class WithOverlay extends HighlightEntry {
+    public static class WithOverlay extends ChunkHighlightEntry {
         private BufferedImage overlay;
 
         public WithOverlay(Chunk chunk) {
@@ -58,7 +63,7 @@ public class HighlightEntry {
             overlay.setRGB(x, z, color);
         }
 
-        public Stream<HighlightEntry> stream() {
+        public Stream<ChunkHighlightEntry> stream() {
             if(overlay == null)
                 return Stream.empty();
             return Stream.of(this);
@@ -67,10 +72,10 @@ public class HighlightEntry {
         @Override
         public void paint(Graphics g, int zoom) {
             if(zoom == 1)
-                g.drawImage(overlay, getX() * 16, getZ() * 16, null);
+                g.drawImage(overlay, getX(), getZ(), null);
             else {
                 final int zoom16 = 16 * zoom;
-                g.drawImage(overlay, getX() * zoom16, getZ() * zoom16,
+                g.drawImage(overlay, getX() * zoom, getZ() * zoom,
                         zoom16, zoom16, null);
             }
         }
