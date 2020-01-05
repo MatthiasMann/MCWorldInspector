@@ -1,15 +1,18 @@
 package mcworldinspector.nbt;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -77,6 +80,12 @@ public class NBTTagList<T> extends NBTArray<T> {
         return Arrays.stream(entries);
     }
 
+    public Stream<Map.Entry<Integer, T>> entryStream() {
+        final var e = this.entries;
+        return IntStream.range(0, e.length).mapToObj(
+                idx -> new AbstractMap.SimpleImmutableEntry<>(idx, e[idx]));
+    }
+
     @Override
     public String toString() {
         return Arrays.toString(entries);
@@ -85,5 +94,10 @@ public class NBTTagList<T> extends NBTArray<T> {
     @SuppressWarnings("unchecked")
     public<U> NBTTagList<U> as(Class<U> type) {
         return this.type.equals(type) ? (NBTTagList<U>)this : EMPTY;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static<U> NBTTagList<U> empty() {
+        return (NBTTagList<U>)EMPTY;
     }
 }

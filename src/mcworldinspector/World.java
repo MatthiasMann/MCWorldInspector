@@ -112,6 +112,14 @@ public class World {
                 getChunk(spawnX >> 4, spawnZ >> 4) : null;
     }
 
+    public void loadMapMarkers(NBTTagCompound mapNbt) {
+        Integer mapId = mapNbt.get("map", Integer.class);
+        if(mapId == null)
+            return;
+        final var map = maps.get(mapId);
+        map.setDecorations(mapNbt.getList("Decorations", NBTTagCompound.class));
+    }
+
     public static class AsyncLoading {
         private static final AtomicInteger worldNumber = new AtomicInteger(1);
         private final World world = new World();

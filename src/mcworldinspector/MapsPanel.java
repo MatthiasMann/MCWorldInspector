@@ -5,10 +5,8 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.table.AbstractTableModel;
@@ -21,6 +19,7 @@ import mcworldinspector.nbttree.NBTTreeModel;
 public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
     private final Model model = new Model();
+    private World world;
     private WorldRenderer renderer;
 
     public MapsPanel() {
@@ -28,8 +27,7 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
         mapsTable.getSelectionModel().addListSelectionListener(l -> {
             final var selected = mapsTable.getSelectedRows();
-            mapDisplay.setIcon((selected.length == 1) ? new ImageIcon(
-                        model.maps.get(selected[0]).createImage()) : null);
+            updateMapDisplay(selected);
             if(renderer == null)
                 return;
             renderer.highlight(IntStream.of(selected)
@@ -38,8 +36,6 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
                     final var x = map.getX();
                     final var z = map.getZ();
                     final var scale = map.getScale();
-                    if(x == null || z == null || scale == null)
-                        return Stream.empty();
                     final var size = 128 << scale;
                     return Stream.of(new MapHighlightEntry(map,
                             x - size/2, z - size/2, size));
@@ -54,15 +50,29 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
     @Override
     public void reset() {
+        world = null;
+        renderer = null;
         model.maps = Collections.emptyList();
         model.fireTableDataChanged();
+        btnFindMapMarkers.setEnabled(false);
     }
 
     @Override
     public void setWorld(World world, WorldRenderer renderer) {
+        this.world = world;
         this.renderer = renderer;
         model.maps = new ArrayList<>(world.getMaps().values());
         model.fireTableDataChanged();
+        btnFindMapMarkers.setEnabled(true);
+    }
+
+    private void updateMapDisplay(int[] selected) {
+        mapDisplay.setMap((selected.length == 1)
+                ? model.maps.get(selected[0]) : null);
+    }
+
+    private void updateMapDisplay() {
+        updateMapDisplay(mapsTable.getSelectedRows());
     }
 
     /** This method is called from within the constructor to
@@ -76,22 +86,33 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
         javax.swing.JScrollPane jScrollPane1 = new javax.swing.JScrollPane();
         mapsTable = new javax.swing.JTable();
-        mapDisplay = new javax.swing.JLabel();
+        mapDisplay = new mcworldinspector.MCMapDisplay();
+        btnFindMapMarkers = new javax.swing.JButton();
 
         mapsTable.setModel(model);
         jScrollPane1.setViewportView(mapsTable);
 
-        mapDisplay.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         mapDisplay.setBorder(javax.swing.BorderFactory.createEtchedBorder());
-        mapDisplay.setMinimumSize(new java.awt.Dimension(128, 128));
-        mapDisplay.setPreferredSize(new java.awt.Dimension(128, 128));
+
+        btnFindMapMarkers.setText("Find map markers in chests");
+        btnFindMapMarkers.setToolTipText("");
+        btnFindMapMarkers.setEnabled(false);
+        btnFindMapMarkers.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFindMapMarkersActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 409, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(btnFindMapMarkers, javax.swing.GroupLayout.DEFAULT_SIZE, 276, Short.MAX_VALUE)
+                .addContainerGap())
+            .addGroup(layout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(mapDisplay, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -99,15 +120,30 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane1)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 396, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(mapDisplay, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(mapDisplay, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(btnFindMapMarkers)
+                .addContainerGap())
         );
     }// </editor-fold>//GEN-END:initComponents
 
+    private void btnFindMapMarkersActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFindMapMarkersActionPerformed
+        if(world == null)
+            return;
+        world.chunks().parallel()
+                .flatMap(Chunk::tileEntities)
+                .flatMap(MCItem::getChestContent)
+                .filter(MCItem.filterByID("minecraft:filled_map"))
+                .forEach(i -> world.loadMapMarkers(i.tag));
+        updateMapDisplay();
+    }//GEN-LAST:event_btnFindMapMarkersActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JLabel mapDisplay;
+    private javax.swing.JButton btnFindMapMarkers;
+    private mcworldinspector.MCMapDisplay mapDisplay;
     private javax.swing.JTable mapsTable;
     // End of variables declaration//GEN-END:variables
 

@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import mcworldinspector.nbt.NBTByteArray;
 import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.utils.FileHelpers;
 
 /**
@@ -232,22 +233,31 @@ public class MCMap {
 
     private final int index;
     private final NBTTagCompound nbt;
+    private final int x;
+    private final int z;
+    private final byte scale;
+    private final NBTByteArray colors;
+    private NBTTagList<NBTTagCompound> decorations = NBTTagList.empty();
 
-    public MCMap(int index, NBTTagCompound nbt) {
+    public MCMap(int index, NBTTagCompound nbt, int x, int z, byte scale, NBTByteArray colors) {
         this.index = index;
         this.nbt = nbt;
+        this.x = x;
+        this.z = z;
+        this.scale = scale;
+        this.colors = colors;
     }
 
-    public Integer getX() {
-        return nbt.getCompound("data").get("xCenter", Integer.class);
+    public int getX() {
+        return x;
     }
 
-    public Integer getZ() {
-        return nbt.getCompound("data").get("zCenter", Integer.class);
+    public int getZ() {
+        return z;
     }
 
-    public Byte getScale() {
-        return nbt.getCompound("data").get("scale", Byte.class);
+    public byte getScale() {
+        return scale;
     }
 
     public int getIndex() {
@@ -258,18 +268,19 @@ public class MCMap {
         return nbt;
     }
 
+    public synchronized NBTTagList<NBTTagCompound> getDecorations() {
+        return decorations;
+    }
+
+    public synchronized void setDecorations(NBTTagList<NBTTagCompound> decorations) {
+        this.decorations = decorations;
+    }
+
     public BufferedImage createImage() {
-        NBTByteArray colors = getColors(nbt);
-        if(colors == null || colors.size() != 128*128)
-            return null;
         final var img = new BufferedImage(128, 128,
                 BufferedImage.TYPE_BYTE_INDEXED, COLOR_MODEL);
         colors.setDataElements(img.getRaster(), 0, 0, 128, 128);
         return img;
-    }
-
-    private static NBTByteArray getColors(NBTTagCompound nbt) {
-        return nbt.getCompound("data").get("colors", NBTByteArray.class);
     }
 
     public static MCMap loadMap(File file) throws IOException {
@@ -277,7 +288,14 @@ public class MCMap {
             final var m = MAP_FILENAME_PATTERN.matcher(file.getName());
             final int nr = m.matches() ? Integer.parseInt(m.group(1)) : -1;
             final var nbt = NBTTagCompound.parseGZip(FileHelpers.loadFile(file, 1<<18));
-            return getColors(nbt) != null ? new MCMap(nr, nbt) : null;
+            final var data = nbt.getCompound("data");
+            final var x = data.get("xCenter", Integer.class);
+            final var z = data.get("zCenter", Integer.class);
+            final var scale = data.get("scale", Byte.class);
+            final var colors = data.get("colors", NBTByteArray.class);
+            return (x != null && z != null && scale != null &&
+                    colors != null && colors.size() == 128*128)
+                    ? new MCMap(nr, nbt, x, z, scale, colors) : null;
         } catch (DataFormatException ex) {
             throw new IOException(ex);
         }

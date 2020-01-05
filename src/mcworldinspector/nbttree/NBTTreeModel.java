@@ -3,30 +3,28 @@ package mcworldinspector.nbttree;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Point;
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTree;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.TreeCellRenderer;
@@ -44,6 +42,7 @@ import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTShortArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
+import mcworldinspector.utils.ContextMenuMouseListener;
 import org.json.JSONException;
 import org.json.JSONWriter;
 
@@ -57,7 +56,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         super(makeRoot(nbt));
     }
 
-    public static void displayNBT(Component parent, NBTBase nbt, String title) {
+    public static JTreeTable createNBTreeTable(NBTBase nbt) {
         NBTTreeModel model = new NBTTreeModel(nbt);
         JTreeTable tree = new JTreeTable(model);
         tree.getTree().setRootVisible(false);
@@ -67,60 +66,51 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         if(model.getChildCount(model.getRoot()) == 1)
             tree.getTree().expandRow(0);
         addContextMenu(tree);
-        JScrollPane pane = new JScrollPane(tree);
+        return tree;
+    }
+
+    public static JScrollPane wrapInScrollPane(JComponent comb) {
+        JScrollPane pane = new JScrollPane(comb);
         pane.setMinimumSize(new Dimension(1000, 600));
         pane.setPreferredSize(new Dimension(1000, 600));
-        JOptionPane.showMessageDialog(parent, pane, title, JOptionPane.PLAIN_MESSAGE);
+        return pane;
+    }
+
+    public static void displayNBT(Component parent, NBTBase nbt, String title) {
+        JOptionPane.showMessageDialog(parent,
+                wrapInScrollPane(createNBTreeTable(nbt)),
+                title, JOptionPane.PLAIN_MESSAGE);
+    }
+
+    public static void displayNBT(Component parent, NBTBase nbt, String title,
+            Collection<Map.Entry<String, ? extends JComponent>> tabs) {
+        final var tabbedPane = new JTabbedPane();
+        tabbedPane.add("NBT", wrapInScrollPane(createNBTreeTable(nbt)));
+        tabs.forEach(e -> tabbedPane.add(e.getKey(), e.getValue()));
+        JOptionPane.showMessageDialog(parent, tabbedPane, title, JOptionPane.PLAIN_MESSAGE);
     }
 
     public static void addContextMenu(JTreeTable treeTable) {
         assert(treeTable.getModel() instanceof NBTTreeModel);
-        treeTable.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                checkPopup(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                checkPopup(e);
-            }
-            
-            public void checkPopup(MouseEvent e) {
-                if(!e.isPopupTrigger())
-                    return;
-                final Point point = e.getPoint();
-                final int row = treeTable.rowAtPoint(point);
-                if(row < 0)
-                    return;
-                final int column = treeTable.columnAtPoint(point);
-                treeTable.setRowSelectionInterval(row, row);
-                treeTable.setColumnSelectionInterval(column, column);
-                final Node node = (Node)treeTable.getTree().getLastSelectedPathComponent();
-                if(node == null)
-                    return;
-                final boolean hasValue = !node.value.text.isEmpty();
-                JPopupMenu popupMenu = new JPopupMenu();
-                if(column == 1 && hasValue)
-                    popupMenu.add(new AbstractAction("Copy value") {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                            copyToClipboard(node.value.text);
-                        }
-                    });
-                if(hasValue)
-                    popupMenu.add(new CopyAsJSONAction("Copy row as JSON", node, false));
-                if(!node.children.isEmpty())
-                    popupMenu.add(new CopyAsJSONAction("Copy tree as JSON", node, true));
-                if(popupMenu.getComponentCount() > 0)
-                    popupMenu.show(e.getComponent(), e.getX(), e.getY());
-            }
-        });
-    }
-
-    private static void copyToClipboard(String str) {
-        Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
-        cb.setContents(new StringSelection(str), null);
+        ContextMenuMouseListener.install(treeTable, (e, row, column) -> {
+            final Node node = (Node)treeTable.getTree().getLastSelectedPathComponent();
+            if(node == null)
+                return null;
+            final boolean hasValue = !node.value.text.isEmpty();
+            JPopupMenu popupMenu = new JPopupMenu();
+            if(column == 1 && hasValue)
+                popupMenu.add(new AbstractAction("Copy value") {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        ContextMenuMouseListener.copyToClipboard(node.value.text);
+                    }
+                });
+            if(hasValue)
+                popupMenu.add(new CopyAsJSONAction("Copy row as JSON", node, false));
+            if(!node.children.isEmpty())
+                popupMenu.add(new CopyAsJSONAction("Copy tree as JSON", node, true));
+            return popupMenu;
+        }, true);
     }
 
     static class CopyAsJSONAction extends AbstractAction {
@@ -138,7 +128,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
             try {
                 StringWriter sw = new StringWriter();
                 node.writeJSON(new JSONWriter(sw), withChildren);
-                copyToClipboard(sw.toString());
+                ContextMenuMouseListener.copyToClipboard(sw.toString());
             } catch (JSONException ex) {
                 Logger.getLogger(CopyAsJSONAction.class.getName())
                         .log(Level.SEVERE, "Unable to create JSON", ex);
@@ -233,6 +223,26 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     private static final String POS_FORMAT_INT = "<%d, %d, %d>";
     private static final String POS_FORMAT_DOUBLE = "<%.1f, %.1f, %.1f>";
 
+    public static String formatPosition(NBTDoubleArray pos) {
+        return String.format(POS_FORMAT_DOUBLE, pos.get(0), pos.get(1), pos.get(2));
+    }
+
+    public static String formatPosition(NBTIntArray pos) {
+        return String.format(POS_FORMAT_INT, pos.get(0), pos.get(1), pos.get(2));
+    }
+
+    public static String formatPosition(NBTTagCompound nbt) {
+        Object x = nbt.get("x");
+        Object y = nbt.get("y");
+        Object z = nbt.get("z");
+        if(x instanceof Integer && y instanceof Integer && z instanceof Integer)
+            return String.format(POS_FORMAT_INT, x, y, z);
+        if((x instanceof Double && y instanceof Double && z instanceof Double) ||
+                (x instanceof Float && y instanceof Float && z instanceof Float))
+            return String.format(POS_FORMAT_DOUBLE, x, y, z);
+        return "";
+    }
+
     private static void makeChildNodes(String name, Node node, Object value) {
         MCColor color;
         if("Color".equalsIgnoreCase(name) && value instanceof Byte &&
@@ -243,30 +253,23 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         if(value instanceof NBTDoubleArray) {
             NBTDoubleArray pos = (NBTDoubleArray)value;
             if(pos.size() == 3) {
-                node.value = new TextWithIcon(String.format(POS_FORMAT_DOUBLE, pos.get(0), pos.get(1), pos.get(2)));
+                node.value = new TextWithIcon(formatPosition(pos));
                 return;
             }
         }
         if(value instanceof NBTIntArray) {
             NBTIntArray pos = (NBTIntArray)value;
             if(pos.size() == 3) {
-                node.value = new TextWithIcon(String.format(POS_FORMAT_INT, pos.get(0), pos.get(1), pos.get(2)));
+                node.value = new TextWithIcon(formatPosition(pos));
                 return;
             }
         }
         if(value instanceof NBTTagCompound) {
             NBTTagCompound nbt = (NBTTagCompound)value;
             if(nbt.size() == 3) {
-                Object x = nbt.get("x");
-                Object y = nbt.get("y");
-                Object z = nbt.get("z");
-                if(x instanceof Integer && y instanceof Integer && z instanceof Integer) {
-                    node.value = new TextWithIcon(String.format(POS_FORMAT_INT, x, y, z));
-                    return;
-                }
-                if((x instanceof Double && y instanceof Double && z instanceof Double) ||
-                        (x instanceof Float && y instanceof Float && z instanceof Float)) {
-                    node.value = new TextWithIcon(String.format(POS_FORMAT_DOUBLE, x, y, z));
+                String posStr = formatPosition(nbt);
+                if(!posStr.isEmpty()) {
+                    node.value = new TextWithIcon(posStr);
                     return;
                 }
             }
