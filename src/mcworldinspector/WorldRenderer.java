@@ -153,13 +153,11 @@ public class WorldRenderer extends JComponent {
 
     public void startChunkRendering(ChunkRenderer chunkRenderer) {
         final Point center = getViewportCenter();
-        center.translate(min_x * 16, min_z * 16);
         final int generation = asyncRenderingGeneration.incrementAndGet();
         executor.execute(() -> {
-            HashMap<XZPosition, ArrayList<Chunk>> regions = new HashMap<>(
-                    world.getChunks().size());
-            world.chunks().forEach(chunk -> regions.computeIfAbsent(
-                    chunk.getRegionStart(), p -> new ArrayList<>(32*32)).add(chunk));
+            final var regions = world.chunks()
+                    .collect(Collectors.groupingBy(Chunk::getRegionStart,
+                            Collectors.toCollection(() -> new ArrayList<>(32*32))));
             regions.entrySet().stream().sorted((a,b) -> {
                 return Long.compare(
                         getRegionDistance(a.getKey(), center),
