@@ -23,8 +23,14 @@ public class MCMapDisplay extends JComponent {
     private static final HashMap<Byte, Icon> MAP_MARKERS = new HashMap<>();
 
     private MCMap map;
+    private ImageIcon backgroundImage;
     private BufferedImage mapImage;
     private List<Icon> decorations = Collections.emptyList();
+
+    public MCMapDisplay() {
+        final var bgURL = MCMapDisplay.class.getResource("map_background.png");
+        backgroundImage = (bgURL != null) ? new ImageIcon(bgURL) : null;
+    }
 
     public MCMap getMap() {
         return map;
@@ -74,23 +80,29 @@ public class MCMapDisplay extends JComponent {
     @Override
     public Dimension getPreferredSize() {
         final var insets = getInsets();
+        final var width = backgroundImage != null ? backgroundImage.getIconWidth() : 128;
+        final var height = backgroundImage != null ? backgroundImage.getIconHeight() : 128;
         return new Dimension(
-                insets.left + 128 + insets.right,
-                insets.top + 128 + insets.bottom);
-    }
-
-    @Override
-    protected void paintBorder(Graphics g) {
+                insets.left + width + insets.right,
+                insets.top + height + insets.bottom);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         final var insets = getInsets();
+        final int x;
+        final int y;
+        if(backgroundImage != null) {
+            backgroundImage.paintIcon(this, g, insets.left, insets.top);
+            x = insets.left + (backgroundImage.getIconWidth() - 128) / 2;
+            y = insets.top + (backgroundImage.getIconHeight() - 128) / 2;
+        } else {
+            x = insets.left;
+            y = insets.top;
+        }
         if(map != null)
-            g.drawImage(mapImage, insets.left, insets.top, this);
-        super.paintBorder(g);
-        decorations.forEach(
-                i -> i.paintIcon(this, g, insets.left, insets.top));
+            g.drawImage(mapImage, x, y, this);
+        decorations.forEach(i -> i.paintIcon(this, g, x, y));
     }
 
 }
