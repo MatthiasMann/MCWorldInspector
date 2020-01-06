@@ -16,6 +16,9 @@ public class MCItem {
     public final int slot;
     public final NBTTagCompound tag;
 
+    public static final String AIR = "minecraft:air";
+    public static final String FILLED_MAP = "minecraft:filled_map";
+
     private MCItem(String id, int count, int slot, NBTTagCompound tag) {
         this.id = id;
         this.count = count;
@@ -34,6 +37,10 @@ public class MCItem {
         return getChestContent(nbt, id);
     }
 
+    public static boolean isValidItemID(final String id) {
+        return id != null && !AIR.equals(id);
+    }
+
     public static Stream<MCItem> getChestContent(NBTTagCompound nbt, String id) {
         switch (id) {
             case "storagedrawers:fractional_drawers_3":
@@ -44,18 +51,19 @@ public class MCItem {
                 return ofStorageDrawers(nbt.getList("Drawers", NBTTagCompound.class));
             default:
                 return Stream.concat(
-                    nbt.getList("Items", NBTTagCompound.class).stream(),
-                    nbt.getList("inventory", NBTTagCompound.class).stream())
+                    nbt.getList("Items", NBTTagCompound.class).entryStream(),
+                    nbt.getList("inventory", NBTTagCompound.class).entryStream())
                     .flatMap(MCItem::ofVanilla);
         }
     }
 
-    private static Stream<MCItem> ofVanilla(NBTTagCompound nbt) {
+    private static Stream<MCItem> ofVanilla(NBTTagList.Entry<NBTTagCompound> e) {
+        final var nbt = e.value;
         final var count = nbt.get("Count", Byte.class, (byte)1);
-        final var slot = nbt.get("Slot", Byte.class, (byte)0);
+        final var slot = nbt.get("Slot", Byte.class, (byte)e.index);
         final var tag = nbt.getCompound("tag");
         final var id = nbt.getString("id");
-        return (id != null)
+        return isValidItemID(id)
                 ? Stream.of(new MCItem(id, count, slot, tag))
                 : Stream.empty();
     }
@@ -70,13 +78,13 @@ public class MCItem {
                 item -> ofStorageDrawersSlot(item, count));
     }
 
-    private static Stream<MCItem> ofStorageDrawersSlot(Map.Entry<Integer, NBTTagCompound> e) {
-        final var slot = e.getKey();
+    private static Stream<MCItem> ofStorageDrawersSlot(NBTTagList.Entry<NBTTagCompound> e) {
+        final var slot = e.index;
         final var count = e.getValue().get("Count", Integer.class, 1);
         final var item = e.getValue().getCompound("Item");
         final var tag = item.getCompound("tag");
         final var id = item.getString("id");
-        return (id != null)
+        return isValidItemID(id)
                 ? Stream.of(new MCItem(id, count, slot, tag))
                 : Stream.empty();
     }
@@ -85,7 +93,7 @@ public class MCItem {
         final var conv = nbt.get("Conv", Integer.class, 1);
         final var slot = nbt.get("Slot", Byte.class, (byte)0);
         final var id = nbt.getCompound("Item").getString("id");
-        return (id != null)
+        return isValidItemID(id)
                 ? Stream.of(new MCItem(id, count / conv, slot, NBTTagCompound.EMPTY))
                 : Stream.empty();
     }

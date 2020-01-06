@@ -80,10 +80,35 @@ public class NBTTagList<T> extends NBTArray<T> {
         return Arrays.stream(entries);
     }
 
-    public Stream<Map.Entry<Integer, T>> entryStream() {
+    public static class Entry<T> implements Map.Entry<Integer, T> {
+        public final int index;
+        public final T value;
+
+        public Entry(int index, T value) {
+            this.index = index;
+            this.value = value;
+        }
+
+        @Override
+        public Integer getKey() {
+            return index;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+
+        @Override
+        public T setValue(T value) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public Stream<Entry<T>> entryStream() {
         final var e = this.entries;
         return IntStream.range(0, e.length).mapToObj(
-                idx -> new AbstractMap.SimpleImmutableEntry<>(idx, e[idx]));
+                idx -> new Entry<>(idx, e[idx]));
     }
 
     @Override

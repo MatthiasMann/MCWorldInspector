@@ -77,4 +77,16 @@ public class ContextMenuMouseListener extends MouseAdapter {
         Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
         cb.setContents(new StringSelection(str), null);
     }
+
+    public static void setTableColumnWidth(JTable table, int columnIdx, String reference) {
+        final var column = table.getColumnModel().getColumn(columnIdx);
+        final var renderer = table.getTableHeader().getDefaultRenderer()
+                .getTableCellRendererComponent(table, column.getHeaderValue(),
+                        false, false, -1, columnIdx);
+        final var fontMetrics = table.getFontMetrics(table.getFont());
+        final var width = Math.max((int)renderer.getPreferredSize().getWidth(),
+                fontMetrics.stringWidth(reference)) + 4;
+        column.setMinWidth(width);
+        column.setMaxWidth(width);
+    }
 }

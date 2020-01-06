@@ -302,9 +302,8 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         };
         final var title = id + " at " + NBTTreeModel.formatPosition(nbt);
         final var table = new JTable(model);
-        final var fontMetrics = table.getFontMetrics(table.getFont());
-        table.getColumnModel().getColumn(0)
-                .setWidth(fontMetrics.stringWidth("123"));
+        ContextMenuMouseListener.setTableColumnWidth(table, 0, "123");
+        ContextMenuMouseListener.setTableColumnWidth(table, 2, "123");
         ContextMenuMouseListener.install(table, (e, row, column) -> {
             final var item = items.get(row);
             final var popupMenu = new JPopupMenu();
@@ -383,8 +382,7 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             if(createTabs == null)
                 NBTTreeModel.displayNBT(parent, combinedNbt, title);
             else {
-                final var tabs = chunk.tileEntities()
-                        .filter(filter)
+                final var tabs = combinedNbt.stream()
                         .flatMap(createTabs)
                         .collect(Collectors.toList());
                 NBTTreeModel.displayNBT(parent, combinedNbt, title, tabs);
