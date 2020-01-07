@@ -1,31 +1,24 @@
 package mcworldinspector;
 
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JTable;
 import javax.swing.SwingUtilities;
-import javax.swing.table.AbstractTableModel;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
-import mcworldinspector.utils.ContextMenuMouseListener;
 
 /**
  *
@@ -263,86 +256,8 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             return Stream.empty();
         final var items = MCItem.getChestContent(nbt, id)
                 .collect(Collectors.toList());
-        final var model = new AbstractTableModel() {
-            @Override
-            public int getRowCount() {
-                return items.size();
-            }
-
-            @Override
-            public int getColumnCount() {
-                return 4;
-            }
-
-            @Override
-            public String getColumnName(int column) {
-                switch (column) {
-                    case 0: return "Slot";
-                    case 1: return "Item";
-                    case 2: return "Count";
-                    case 3: return "NBT";
-                    default:
-                        throw new AssertionError();
-                }
-            }
-
-            @Override
-            public Object getValueAt(int rowIndex, int columnIndex) {
-                final var item = items.get(rowIndex);
-                switch (columnIndex) {
-                    case 0: return item.slot;
-                    case 1: return item.id;
-                    case 2: return item.count;
-                    case 3: return item.tag.isEmpty() ? "" :
-                            item.tag.size() + " values";
-                    default:
-                        throw new AssertionError();
-                }
-            }
-        };
         final var title = id + " at " + NBTTreeModel.formatPosition(nbt);
-        final var table = new JTable(model);
-        ContextMenuMouseListener.setTableColumnWidth(table, 0, "123");
-        ContextMenuMouseListener.setTableColumnWidth(table, 2, "123");
-        ContextMenuMouseListener.install(table, (e, row, column) -> {
-            final var item = items.get(row);
-            final var popupMenu = new JPopupMenu();
-            switch (column) {
-                case 0:
-                    break;
-                case 1:
-                    popupMenu.add(new AbstractAction("Copy item ID") {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                            ContextMenuMouseListener.copyToClipboard(item.id);
-                        }
-                    });
-                    break;
-                case 2:
-                    break;
-                case 3:
-                    if(!item.tag.isEmpty()) {
-                        popupMenu.add(new AbstractAction("Show NBT") {
-                            @Override
-                            public void actionPerformed(ActionEvent e) {
-                                NBTTreeModel.displayNBT(table, item.tag, item.id);
-                            }
-                        });
-                        if(item.id.equals("minecraft:filled_map")) {
-                            popupMenu.add(new AbstractAction("Load markers into map panel") {
-                                @Override
-                                public void actionPerformed(ActionEvent e) {
-                                    world.loadMapMarkers(item.tag);
-                                }
-                            });
-                        }
-                    }
-                    break;
-                default:
-                    throw new AssertionError();
-            }
-            return popupMenu;
-        }, true);
+        final var table = MCItem.createInventoryView(world, items);
         for(int idx=0 ; idx<items.size() ; idx++) {
             if(items.get(idx).id.equals(highlightItem))
                 table.getSelectionModel().addSelectionInterval(idx, idx);

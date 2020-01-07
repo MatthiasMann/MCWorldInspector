@@ -94,9 +94,12 @@ public class World {
         return seed != null ? seed : 0;
     }
 
+    public NBTTagCompound getPlayerData() {
+        return level.getCompound("Data").getCompound("Player");
+    }
+
     public NBTDoubleArray getPlayerPos() {
-        return level.getCompound("Data")
-                    .getCompound("Player").get("Pos", NBTDoubleArray.class);
+        return getPlayerData().get("Pos", NBTDoubleArray.class);
     }
 
     public Chunk getPlayerChunk() {

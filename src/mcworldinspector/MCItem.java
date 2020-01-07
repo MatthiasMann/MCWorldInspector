@@ -1,10 +1,17 @@
 package mcworldinspector;
 
-import java.util.Map;
+import java.awt.event.ActionEvent;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import javax.swing.AbstractAction;
+import javax.swing.JPopupMenu;
+import javax.swing.JTable;
+import javax.swing.table.AbstractTableModel;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.nbt.NBTTagList;
+import mcworldinspector.nbttree.NBTTreeModel;
+import mcworldinspector.utils.ContextMenuMouseListener;
 
 /**
  *
@@ -18,6 +25,10 @@ public class MCItem {
 
     public static final String AIR = "minecraft:air";
     public static final String FILLED_MAP = "minecraft:filled_map";
+
+    public boolean isFilledMap() {
+        return FILLED_MAP.equals(id);
+    }
 
     private MCItem(String id, int count, int slot, NBTTagCompound tag) {
         this.id = id;
@@ -57,7 +68,7 @@ public class MCItem {
         }
     }
 
-    private static Stream<MCItem> ofVanilla(NBTTagList.Entry<NBTTagCompound> e) {
+    public static Stream<MCItem> ofVanilla(NBTTagList.Entry<NBTTagCompound> e) {
         final var nbt = e.value;
         final var count = nbt.get("Count", Byte.class, (byte)1);
         final var slot = nbt.get("Slot", Byte.class, (byte)e.index);
@@ -96,5 +107,88 @@ public class MCItem {
         return isValidItemID(id)
                 ? Stream.of(new MCItem(id, count / conv, slot, NBTTagCompound.EMPTY))
                 : Stream.empty();
+    }
+
+    public static JTable createInventoryView(World world, List<MCItem> items) {
+        final var model = new AbstractTableModel() {
+            @Override
+            public int getRowCount() {
+                return items.size();
+            }
+
+            @Override
+            public int getColumnCount() {
+                return 4;
+            }
+
+            @Override
+            public String getColumnName(int column) {
+                switch (column) {
+                    case 0: return "Slot";
+                    case 1: return "Item";
+                    case 2: return "Count";
+                    case 3: return "NBT";
+                    default:
+                        throw new AssertionError();
+                }
+            }
+
+            @Override
+            public Object getValueAt(int rowIndex, int columnIndex) {
+                final var item = items.get(rowIndex);
+                switch (columnIndex) {
+                    case 0: return item.slot;
+                    case 1: return item.id;
+                    case 2: return item.count;
+                    case 3: return item.tag.isEmpty() ? "" :
+                            item.tag.size() + " values";
+                    default:
+                        throw new AssertionError();
+                }
+            }
+        };
+        final var table = new JTable(model);
+        ContextMenuMouseListener.setTableColumnWidth(table, 0, "123");
+        ContextMenuMouseListener.setTableColumnWidth(table, 2, "123");
+        ContextMenuMouseListener.install(table, (e, row, column) -> {
+            final var item = items.get(row);
+            final var popupMenu = new JPopupMenu();
+            switch (column) {
+                case 0:
+                    break;
+                case 1:
+                    popupMenu.add(new AbstractAction("Copy item ID") {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            ContextMenuMouseListener.copyToClipboard(item.id);
+                        }
+                    });
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    if(!item.tag.isEmpty()) {
+                        popupMenu.add(new AbstractAction("Show NBT") {
+                            @Override
+                            public void actionPerformed(ActionEvent e) {
+                                NBTTreeModel.displayNBT(table, item.tag, item.id);
+                            }
+                        });
+                        if(item.isFilledMap()) {
+                            popupMenu.add(new AbstractAction("Load markers into map panel") {
+                                @Override
+                                public void actionPerformed(ActionEvent e) {
+                                    world.loadMapMarkers(item.tag);
+                                }
+                            });
+                        }
+                    }
+                    break;
+                default:
+                    throw new AssertionError();
+            }
+            return popupMenu;
+        }, true);
+        return table;
     }
 }

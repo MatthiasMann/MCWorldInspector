@@ -13,6 +13,8 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
@@ -21,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
 import javax.swing.Icon;
@@ -524,8 +527,22 @@ public class MCWorldInspector extends javax.swing.JFrame {
         final var viewLevelDat = viewMenu.add(new WorldAction("level.dat") {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(world != null)
+                if(world == null)
+                    return;
+                final var player = world.getPlayerData();
+                if(player.isEmpty()) {
                     NBTTreeModel.displayNBT(MCWorldInspector.this, world.getLevel(), "level.dat");
+                    return;
+                }
+                final var items = player.getList("Inventory", NBTTagCompound.class)
+                        .entryStream()
+                        .flatMap(MCItem::ofVanilla)
+                        .collect(Collectors.toList());
+                final var table = MCItem.createInventoryView(world, items);
+                final var tab = new AbstractMap.SimpleImmutableEntry<>(
+                        "Player inventory", NBTTreeModel.wrapInScrollPane(table));
+                NBTTreeModel.displayNBT(MCWorldInspector.this, world.getLevel(),
+                        "level.dat", Collections.singletonList(tab));
             }
         });
         viewLevelDat.setMnemonic('l');
