@@ -79,16 +79,30 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
-                        NBTTagList<NBTTagCompound> result = chunk
+                        final var list = chunk
                                 .getEntities(MINECRAFT_VILLAGER).filter(filter)
-                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
-                        final var tabs = result.stream()
+                                .map(VillagerPanel::addVillagerLabel)
+                                .collect(Collectors.toList());
+                        final var tabs = list.stream()
                                 .flatMap(VillagerPanel.this::createTradeView)
                                 .collect(Collectors.toList());
-                        NBTTreeModel.displayNBT(parent, result,
+                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
                                 "Villager details for " + this, tabs);
                     }
                 });
+    }
+
+    public static Map.Entry<String, NBTTagCompound> addVillagerLabel(NBTTagCompound entity) {
+        final var villagerData = entity.getCompound("VillagerData");
+        final var level = villagerData.get("level", Integer.class);
+        final var profession = villagerData.getString("profession");
+        final var pos = entity.get("Pos", NBTDoubleArray.class);
+        final var label = new StringBuilder(profession);
+        if(level != null)
+            label.append(" (").append(level).append(')');
+        if(pos != null && pos.size() == 3)
+            label.append(" at ").append(NBTTreeModel.formatPosition(pos));
+        return new AbstractMap.SimpleImmutableEntry<>(label.toString(), entity);
     }
 
     public static class Trade {
@@ -138,7 +152,8 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
         }
     }
 
-    private Stream<Map.Entry<String, ? extends JComponent>> createTradeView(NBTTagCompound nbt) {
+    private Stream<Map.Entry<String, ? extends JComponent>> createTradeView(Map.Entry<String, NBTTagCompound> villager) {
+        final var nbt = villager.getValue();
         final var trades = nbt.getCompound("Offers")
                 .getList("Recipes", NBTTagCompound.class)
                 .stream()
@@ -146,10 +161,6 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
                 .collect(Collectors.toList());
         if(trades.isEmpty())
             return Stream.empty();
-        final var pos = nbt.get("Pos", NBTDoubleArray.class);
-        final var villagerData = nbt.getCompound("VillagerData");
-        final var level = villagerData.get("level", Integer.class);
-        final var profession = villagerData.getString("profession");
         final var model = new AbstractTableModel() {
             @Override
             public int getRowCount() {
@@ -158,7 +169,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
 
             @Override
             public int getColumnCount() {
-                return 7;
+                return 8;
             }
 
             @Override
@@ -207,12 +218,11 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
                 }
             }
         };
-        final var title = profession + " (" + level + ") at " +
-                (pos.size() == 3 ? NBTTreeModel.formatPosition(pos) : "<invalid>");
         final var table = new JTable(model);
         ContextMenuMouseListener.setTableColumnWidth(table, 0, "123");
         ContextMenuMouseListener.setTableColumnWidth(table, 2, "123");
         ContextMenuMouseListener.setTableColumnWidth(table, 4, "123");
+        ContextMenuMouseListener.setTableColumnWidth(table, 7, "42 / 42");
         ContextMenuMouseListener.install(table, (e, row, column) -> {
             final var trade = trades.get(row);
             if(column == 6 && !trade.sellTag.isEmpty()) {
@@ -236,6 +246,6 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
             return null;
         }, true);
         return Stream.of(new AbstractMap.SimpleImmutableEntry<>(
-                title, NBTTreeModel.wrapInScrollPane(table)));
+                villager.getKey(), NBTTreeModel.wrapInScrollPane(table)));
     }
 }

@@ -1,15 +1,16 @@
 package mcworldinspector;
 
 import java.awt.Component;
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
@@ -55,11 +56,20 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
-                        NBTTagList<NBTTagCompound> result = chunk.tileEntities()
+                        final var list = chunk.tileEntities()
                                 .filter(Chunk.filterByID(selected))
-                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
-                        NBTTreeModel.displayNBT(parent, result, "Tile entity details for " + this);
+                                .map(TileEntityTypesPanel::addTileEntityLabel)
+                                .collect(Collectors.toList());
+                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
+                                "Tile entity details for " + this);
                     }
                 });
+    }
+
+    public static Map.Entry<String, NBTTagCompound> addTileEntityLabel(NBTTagCompound tileEntity) {
+        final var id = tileEntity.getString("id");
+        final var pos = NBTTreeModel.formatPosition(tileEntity);
+        final String label = pos.isEmpty() ? id : id + " at " + pos;
+        return new AbstractMap.SimpleImmutableEntry<>(label, tileEntity);
     }
 }

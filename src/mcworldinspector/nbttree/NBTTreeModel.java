@@ -56,8 +56,11 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         super(makeRoot(nbt));
     }
 
-    public static JTreeTable createNBTreeTable(NBTBase nbt) {
-        NBTTreeModel model = new NBTTreeModel(nbt);
+    public<T extends NBTBase> NBTTreeModel(List<Map.Entry<String, T>> nbtList) {
+        super(makeRoot(nbtList));
+    }
+
+    public static JTreeTable createNBTreeTable(NBTTreeModel model) {
         JTreeTable tree = new JTreeTable(model);
         tree.getTree().setRootVisible(false);
         tree.getTree().setShowsRootHandles(true);
@@ -77,15 +80,19 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     public static void displayNBT(Component parent, NBTBase nbt, String title) {
+        displayNBT(parent, new NBTTreeModel(nbt), title);
+    }
+
+    public static void displayNBT(Component parent, NBTTreeModel model, String title) {
         JOptionPane.showMessageDialog(parent,
-                wrapInScrollPane(createNBTreeTable(nbt)),
+                wrapInScrollPane(createNBTreeTable(model)),
                 title, JOptionPane.PLAIN_MESSAGE);
     }
 
-    public static void displayNBT(Component parent, NBTBase nbt, String title,
+    public static void displayNBT(Component parent, NBTTreeModel model, String title,
             Collection<Map.Entry<String, ? extends JComponent>> tabs) {
         final var tabbedPane = new JTabbedPane();
-        tabbedPane.add("NBT", wrapInScrollPane(createNBTreeTable(nbt)));
+        tabbedPane.add("NBT", wrapInScrollPane(createNBTreeTable(model)));
         tabs.forEach(e -> tabbedPane.add(e.getKey(), e.getValue()));
         JOptionPane.showMessageDialog(parent, tabbedPane, title, JOptionPane.PLAIN_MESSAGE);
     }
@@ -197,6 +204,17 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         return root;
     }
 
+    private static<T extends NBTBase> Node makeRoot(List<Map.Entry<String, T>> nbtList) {
+        final var root = new Node("", null);
+        for(var e : nbtList) {
+            final var nbt = e.getValue();
+            final var child = new Node(e.getKey(), Node.iconForObject(nbt));
+            makeNode(child, nbt);
+            root.addChild(child);
+        }
+        return root;
+    }
+
     private static void makeNode(Node parent, Object obj) {
         if(obj instanceof NBTTagCompound) {
             ((NBTTagCompound)obj).entries()
@@ -212,7 +230,7 @@ public class NBTTreeModel extends AbstractTreeTableModel {
             for(int idx=0 ; idx<a.size() ; idx++) {
                 final Object value = a.get(idx);
                 final Node node = new Node(Integer.toString(idx), Node.iconForObject(value));
-                makeNode(node, value);
+                makeChildNodes(parent.label, node, value);
                 parent.addChild(node);
             }
         } else {
@@ -232,15 +250,27 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     public static String formatPosition(NBTTagCompound nbt) {
-        Object x = nbt.get("x");
-        Object y = nbt.get("y");
-        Object z = nbt.get("z");
+        String pos = formatPosition(nbt.get("x"), nbt.get("y"), nbt.get("z"));
+        if(pos.isEmpty())
+            pos = formatPosition(nbt.get("X"), nbt.get("Y"), nbt.get("Z"));
+        return pos;
+    }
+
+    public static String formatPosition(Object x, Object y, Object z) {
         if(x instanceof Integer && y instanceof Integer && z instanceof Integer)
             return String.format(POS_FORMAT_INT, x, y, z);
         if((x instanceof Double && y instanceof Double && z instanceof Double) ||
                 (x instanceof Float && y instanceof Float && z instanceof Float))
             return String.format(POS_FORMAT_DOUBLE, x, y, z);
         return "";
+    }
+
+    private static final String BB_FORMAT_INT = "<%d, %d, %d> to <%d, %d, %d>";
+
+    public static String formatBoundingBox(NBTIntArray pos) {
+        return String.format(BB_FORMAT_INT,
+                pos.get(0), pos.get(1), pos.get(2),
+                pos.get(3), pos.get(4), pos.get(5));
     }
 
     private static void makeChildNodes(String name, Node node, Object value) {
@@ -263,15 +293,17 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                 node.value = new TextWithIcon(formatPosition(pos));
                 return;
             }
+            if(pos.size() == 6 && ("BB".equals(name) || "Entrances".equals(name))) {
+                node.value = new TextWithIcon(formatBoundingBox(pos));
+                return;
+            }
         }
         if(value instanceof NBTTagCompound) {
             NBTTagCompound nbt = (NBTTagCompound)value;
             if(nbt.size() == 3) {
                 String posStr = formatPosition(nbt);
-                if(!posStr.isEmpty()) {
+                if(!posStr.isEmpty())
                     node.value = new TextWithIcon(posStr);
-                    return;
-                }
             }
         }
         makeNode(node, value);

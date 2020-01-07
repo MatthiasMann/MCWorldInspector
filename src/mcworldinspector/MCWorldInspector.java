@@ -529,9 +529,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
             public void actionPerformed(ActionEvent e) {
                 if(world == null)
                     return;
+                final var nbtTreeModel = new NBTTreeModel(world.getLevel());
                 final var player = world.getPlayerData();
                 if(player.isEmpty()) {
-                    NBTTreeModel.displayNBT(MCWorldInspector.this, world.getLevel(), "level.dat");
+                    NBTTreeModel.displayNBT(MCWorldInspector.this, nbtTreeModel, "level.dat");
                     return;
                 }
                 final var items = player.getList("Inventory", NBTTagCompound.class)
@@ -541,7 +542,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 final var table = MCItem.createInventoryView(world, items);
                 final var tab = new AbstractMap.SimpleImmutableEntry<>(
                         "Player inventory", NBTTreeModel.wrapInScrollPane(table));
-                NBTTreeModel.displayNBT(MCWorldInspector.this, world.getLevel(),
+                NBTTreeModel.displayNBT(MCWorldInspector.this, nbtTreeModel,
                         "level.dat", Collections.singletonList(tab));
             }
         });

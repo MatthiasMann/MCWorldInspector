@@ -1,16 +1,16 @@
 package mcworldinspector;
 
 import java.awt.Component;
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
@@ -56,11 +56,20 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
-                        NBTTagList<NBTTagCompound> result = chunk.structures()
+                        final var list = chunk.structures()
                                 .filter(Chunk.filterByID(selected))
-                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
-                        NBTTreeModel.displayNBT(parent, result, "Stucture details for " + this);
+                                .map(StructureTypesPanel::addStructureLabel)
+                                .collect(Collectors.toList());
+                        final var model = list.size() == 1
+                                ? new NBTTreeModel(list.get(0).getValue())
+                                : new NBTTreeModel(list);
+                        NBTTreeModel.displayNBT(parent, model,
+                                "Stucture details for " + this);
                     }
                 });
+    }
+
+    public static Map.Entry<String, NBTTagCompound> addStructureLabel(NBTTagCompound s) {
+        return new AbstractMap.SimpleImmutableEntry<>("?", s);
     }
 }

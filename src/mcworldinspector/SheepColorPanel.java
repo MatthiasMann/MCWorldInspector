@@ -70,10 +70,12 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
-                        NBTTagList<NBTTagCompound> result = chunk
+                        final var list = chunk
                                 .getEntities(MINECRAFT_SHEEP).filter(filter)
-                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
-                        NBTTreeModel.displayNBT(parent, result, "Sheep details for " + this);
+                                .map(EntityTypesPanel::addEntityLabel)
+                                .collect(Collectors.toList());
+                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
+                                "Sheep details for " + this);
                     }
                 });
     }

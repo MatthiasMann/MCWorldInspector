@@ -1,15 +1,17 @@
 package mcworldinspector;
 
 import java.awt.Component;
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import mcworldinspector.nbt.NBTDoubleArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
@@ -55,11 +57,26 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
-                        NBTTagList<NBTTagCompound> result = chunk.entities()
+                        final var list = chunk.entities()
                                 .filter(Chunk.filterByID(selected))
-                                .collect(NBTTagList.toTagList(NBTTagCompound.class));
-                        NBTTreeModel.displayNBT(parent, result, "Entity details for " + this);
+                                .map(EntityTypesPanel::addEntityLabel)
+                                .collect(Collectors.toList());
+                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
+                                "Entity details for " + this);
                     }
                 });
+    }
+
+    public static Map.Entry<String, NBTTagCompound> addEntityLabel(NBTTagCompound entity) {
+        final var id = entity.getString("id");
+        final var name = entity.getString("CustomName");
+        final var pos = entity.get("Pos", NBTDoubleArray.class);
+        final var labelBase = (name == null || name.isEmpty()) ? id : name;
+        final String label;
+        if(pos != null && pos.size() == 3)
+            label = labelBase + " at " + NBTTreeModel.formatPosition(pos);
+        else
+            label = labelBase;
+        return new AbstractMap.SimpleImmutableEntry<>(label, entity);
     }
 }

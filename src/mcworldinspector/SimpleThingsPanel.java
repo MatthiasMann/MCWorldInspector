@@ -195,7 +195,7 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         final var item = searchChestDlg.getItem();
         final var itemPred = MCItem.filterByID(item);
         highlightTileEntity(tile -> MCItem.getChestContent(tile).anyMatch(itemPred),
-                "Chests containing " + item, nbt -> createChestView(nbt, item));
+                "Chests containing " + item, e -> createChestView(e, item));
     }//GEN-LAST:event_btnSearchChestsActionPerformed
 
     private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed
@@ -243,27 +243,26 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     }
 
     private void highlightTileEntity(final Predicate<NBTTagCompound> filter, final String title,
-            Function<NBTTagCompound, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
+            Function<Map.Entry<String, NBTTagCompound>, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
         highlight(world.chunks().filter(chunk -> chunk.tileEntities()
                 .anyMatch(filter))
                 .map(chunk -> new TileEntityHighlightEntry(chunk, title, filter, createTabs)));
     }
 
     private Stream<Map.Entry<String, ? extends JComponent>>
-         createChestView(NBTTagCompound nbt, String highlightItem) {
-        final var id = nbt.getString("id");
+         createChestView(Map.Entry<String, NBTTagCompound> e, String highlightItem) {
+        final var id = e.getValue().getString("id");
         if(id == null)
             return Stream.empty();
-        final var items = MCItem.getChestContent(nbt, id)
+        final var items = MCItem.getChestContent(e.getValue(), id)
                 .collect(Collectors.toList());
-        final var title = id + " at " + NBTTreeModel.formatPosition(nbt);
         final var table = MCItem.createInventoryView(world, items);
         for(int idx=0 ; idx<items.size() ; idx++) {
             if(items.get(idx).id.equals(highlightItem))
                 table.getSelectionModel().addSelectionInterval(idx, idx);
         }
         return Stream.of(new AbstractMap.SimpleImmutableEntry<>(
-                title, NBTTreeModel.wrapInScrollPane(table)));
+                e.getKey(), NBTTreeModel.wrapInScrollPane(table)));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -278,10 +277,11 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     private class TileEntityHighlightEntry extends ChunkHighlightEntry {
         private final String titlePrefix;
         private final Predicate<NBTTagCompound> filter;
-        private final Function<NBTTagCompound, Stream<Map.Entry<String, ? extends JComponent>>> createTabs;
+        private final Function<Map.Entry<String, NBTTagCompound>,
+                Stream<Map.Entry<String, ? extends JComponent>>> createTabs;
 
         public TileEntityHighlightEntry(Chunk chunk, String titlePrefix, Predicate<NBTTagCompound> filter,
-                Function<NBTTagCompound, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
+                Function<Map.Entry<String, NBTTagCompound>, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
             super(chunk);
             this.titlePrefix = titlePrefix;
             this.filter = filter;
@@ -290,17 +290,19 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
 
         @Override
         public void showDetailsFor(Component parent) {
-            final var combinedNbt = chunk.tileEntities()
+            final var list = chunk.tileEntities()
                     .filter(filter)
-                    .collect(NBTTagList.toTagList(NBTTagCompound.class));
+                    .map(TileEntityTypesPanel::addTileEntityLabel)
+                    .collect(Collectors.toList());
             final var title = titlePrefix + this;
+            final var nbtTreeModel = new NBTTreeModel(list);
             if(createTabs == null)
-                NBTTreeModel.displayNBT(parent, combinedNbt, title);
+                NBTTreeModel.displayNBT(parent, nbtTreeModel, title);
             else {
-                final var tabs = combinedNbt.stream()
+                final var tabs = list.stream()
                         .flatMap(createTabs)
                         .collect(Collectors.toList());
-                NBTTreeModel.displayNBT(parent, combinedNbt, title, tabs);
+                NBTTreeModel.displayNBT(parent, nbtTreeModel, title, tabs);
             }
         }
     }
