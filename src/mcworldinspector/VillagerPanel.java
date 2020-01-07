@@ -152,7 +152,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
         }
     }
 
-    private Stream<Map.Entry<String, ? extends JComponent>> createTradeView(Map.Entry<String, NBTTagCompound> villager) {
+    private Stream<? extends JComponent> createTradeView(Map.Entry<String, NBTTagCompound> villager) {
         final var nbt = villager.getValue();
         final var trades = nbt.getCompound("Offers")
                 .getList("Recipes", NBTTagCompound.class)
@@ -245,7 +245,6 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
             }
             return null;
         }, true);
-        return Stream.of(new AbstractMap.SimpleImmutableEntry<>(
-                villager.getKey(), NBTTreeModel.wrapInScrollPane(table)));
+        return Stream.of(NBTTreeModel.wrapInScrollPane(table, villager.getKey()));
     }
 }

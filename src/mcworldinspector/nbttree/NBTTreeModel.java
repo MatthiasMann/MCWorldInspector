@@ -79,6 +79,12 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         return pane;
     }
 
+    public static JScrollPane wrapInScrollPane(JComponent comb, String name) {
+        final var pane = wrapInScrollPane(comb);
+        pane.setName(name);
+        return pane;
+    }
+
     public static void displayNBT(Component parent, NBTBase nbt, String title) {
         displayNBT(parent, new NBTTreeModel(nbt), title);
     }
@@ -90,10 +96,10 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     public static void displayNBT(Component parent, NBTTreeModel model, String title,
-            Collection<Map.Entry<String, ? extends JComponent>> tabs) {
+            Collection<? extends JComponent> tabs) {
         final var tabbedPane = new JTabbedPane();
         tabbedPane.add("NBT", wrapInScrollPane(createNBTreeTable(model)));
-        tabs.forEach(e -> tabbedPane.add(e.getKey(), e.getValue()));
+        tabs.forEach(tabbedPane::add);
         JOptionPane.showMessageDialog(parent, tabbedPane, title, JOptionPane.PLAIN_MESSAGE);
     }
 

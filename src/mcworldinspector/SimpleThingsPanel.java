@@ -1,7 +1,6 @@
 package mcworldinspector;
 
 import java.awt.Component;
-import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,7 +15,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
 import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
@@ -243,13 +241,13 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     }
 
     private void highlightTileEntity(final Predicate<NBTTagCompound> filter, final String title,
-            Function<Map.Entry<String, NBTTagCompound>, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
+            Function<Map.Entry<String, NBTTagCompound>, Stream<? extends JComponent>> createTabs) {
         highlight(world.chunks().filter(chunk -> chunk.tileEntities()
                 .anyMatch(filter))
                 .map(chunk -> new TileEntityHighlightEntry(chunk, title, filter, createTabs)));
     }
 
-    private Stream<Map.Entry<String, ? extends JComponent>>
+    private Stream<? extends JComponent>
          createChestView(Map.Entry<String, NBTTagCompound> e, String highlightItem) {
         final var id = e.getValue().getString("id");
         if(id == null)
@@ -261,8 +259,7 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             if(items.get(idx).id.equals(highlightItem))
                 table.getSelectionModel().addSelectionInterval(idx, idx);
         }
-        return Stream.of(new AbstractMap.SimpleImmutableEntry<>(
-                e.getKey(), NBTTreeModel.wrapInScrollPane(table)));
+        return Stream.of(NBTTreeModel.wrapInScrollPane(table, e.getKey()));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -278,10 +275,10 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         private final String titlePrefix;
         private final Predicate<NBTTagCompound> filter;
         private final Function<Map.Entry<String, NBTTagCompound>,
-                Stream<Map.Entry<String, ? extends JComponent>>> createTabs;
+                Stream<? extends JComponent>> createTabs;
 
         public TileEntityHighlightEntry(Chunk chunk, String titlePrefix, Predicate<NBTTagCompound> filter,
-                Function<Map.Entry<String, NBTTagCompound>, Stream<Map.Entry<String, ? extends JComponent>>> createTabs) {
+                Function<Map.Entry<String, NBTTagCompound>, Stream<? extends JComponent>> createTabs) {
             super(chunk);
             this.titlePrefix = titlePrefix;
             this.filter = filter;

@@ -13,7 +13,6 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -540,8 +539,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
                         .flatMap(MCItem::ofVanilla)
                         .collect(Collectors.toList());
                 final var table = MCItem.createInventoryView(world, items);
-                final var tab = new AbstractMap.SimpleImmutableEntry<>(
-                        "Player inventory", NBTTreeModel.wrapInScrollPane(table));
+                final var tab = NBTTreeModel.wrapInScrollPane(table,
+                        "Player inventory");
                 NBTTreeModel.displayNBT(MCWorldInspector.this, nbtTreeModel,
                         "level.dat", Collections.singletonList(tab));
             }
