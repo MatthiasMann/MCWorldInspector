@@ -37,12 +37,14 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileView;
+import javax.swing.table.AbstractTableModel;
 import static mcworldinspector.CreateColorMapDialog.BCM_EXTENSION_FILTER;
 import static mcworldinspector.CreateColorMapDialog.RECENT_FOLDER_COLORMAP_KEY;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -546,6 +548,57 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         viewLevelDat.setMnemonic('l');
+        final var viewWorldStats = viewMenu.add(new WorldAction("Statistics") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(world == null)
+                    return;
+                final var model = new AbstractTableModel() {
+                    @Override
+                    public int getRowCount() {
+                        return 4;
+                    }
+                    @Override
+                    public int getColumnCount() {
+                        return 2;
+                    }
+                    @Override
+                    public String getColumnName(int column) {
+                        switch (column) {
+                            case 0: return "Name";
+                            case 1: return "Value";
+                            default:
+                                throw new AssertionError();
+                        }
+                    }
+                    @Override
+                    public Object getValueAt(int rowIndex, int columnIndex) {
+                        switch (rowIndex*2+columnIndex) {
+                            case 0: return "Number of region files";
+                            case 1: return world.getRegionFilesCount();
+                            case 2: return "Total region files size";
+                            case 3: return world.getRegionFilesTotalSize();
+                            case 4: return "Used region file size";
+                            case 5: return world.getRegionFilesUsed();
+                            case 6: return "Unused region file space";
+                            case 7:
+                                long total = world.getRegionFilesTotalSize();
+                                long wasted = total - world.getRegionFilesUsed();
+                                return String.format("%d (%4.1f%%)", wasted,
+                                        wasted * 100.0 / total);
+                            default:
+                                throw new AssertionError();
+                        }
+                    }
+                };
+                final var table = new JTable(model);
+                JOptionPane.showMessageDialog(MCWorldInspector.this,
+                        NBTTreeModel.wrapInScrollPane(table),
+                        "Statistics for " + world.getName(),
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        viewWorldStats.setMnemonic('S');
         return viewMenu;
     }
 

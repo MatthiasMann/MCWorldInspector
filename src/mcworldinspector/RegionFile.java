@@ -27,7 +27,31 @@ public class RegionFile {
     
     private static final Pattern NAME_PATTERN = Pattern.compile("^r\\.(-?[0-9]+)\\.(-?[0-9]+)\\.mca$");
 
-    private RegionFile() {}
+    private final RandomAccessFile raf;
+    private final long fileSize;
+    private long fileUsed;
+
+    private RegionFile(File file) throws IOException {
+        this.raf = new RandomAccessFile(file, "r");
+        this.fileSize = raf.length();
+    }
+
+    private void close() {
+        try {
+            raf.close();
+        } catch(IOException ex) {}
+    }
+
+    private void read(ByteBuffer bb, long offset, String msg) throws IOException {
+        try {
+            raf.getChannel().read(bb, offset);
+        } catch(IOException ex) {
+            throw new IOException(msg, ex);
+        }
+        if(bb.hasRemaining())
+            throw new EOFException(msg);
+        bb.flip();
+    }
 
     private static class ChunkBuffers {
         final ByteBuffer header = ByteBuffer.allocateDirect(5);
@@ -42,37 +66,11 @@ public class RegionFile {
         }
     }
 
-    private static final ThreadLocal<ByteBuffer> OFFSETS = new ThreadLocal<>() {
-        @Override
-        protected ByteBuffer initialValue() {
-            return ByteBuffer.allocateDirect(4096);
-        }
-
-        @Override
-        public ByteBuffer get() {
-            final ByteBuffer b = super.get();
-            b.clear();
-            return b;
-        }
-
-    };
-    private static final ThreadLocal<ChunkBuffers> BUFFERS = new ThreadLocal<>() {
-        @Override
-        protected ChunkBuffers initialValue() {
-            return new ChunkBuffers();
-        }
-
-        @Override
-        public ChunkBuffers get() {
-            final ChunkBuffers buffers = super.get();
-            buffers.header.clear();
-            buffers.uncompressed.clear();
-            return buffers;
-        }
-    };
+    private static final ThreadLocalOffsets OFFSETS = new ThreadLocalOffsets();
+    private static final ThreadLocalChunkBuffers BUFFERS = new ThreadLocalChunkBuffers();
 
     @SuppressWarnings("UseSpecificCatch")
-    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, Consumer<List<Expected<Chunk>>> c) throws IOException {
+    public static int loadAsync(File file, ExecutorService e, AtomicInteger openFiles, LoadCompleted c) throws IOException {
         Matcher matcher = NAME_PATTERN.matcher(file.getName());
         if(!matcher.matches())
             throw new IOException("Invalid file name: " + file);
@@ -81,14 +79,11 @@ public class RegionFile {
         int globalZ = Integer.parseInt(matcher.group(2)) * 32;
         ByteBuffer offsets = OFFSETS.get();
 
-        RandomAccessFile raf = new RandomAccessFile(file, "r");
+        final RegionFile rf = new RegionFile(file);
         try {
-            offsets.clear();
-            if(raf.getChannel().read(offsets, 0) != offsets.capacity())
-                throw new EOFException();
-            offsets.flip();
+            rf.read(offsets, 0, "Could not read chunk offsets");
         } catch(IOException ex) {
-            raf.close();
+            rf.close();
             throw ex;
         }
 
@@ -102,31 +97,27 @@ public class RegionFile {
                     final int chunkX = globalX + (idx & 31);
                     return () -> {
                         try {
-                            return loadChunk(raf, offset, chunkX, chunkZ);
+                            return rf.loadChunk(offset, chunkX, chunkZ);
                         } catch(IOException ex) {
                             throw new IOExceptionWithOffset(offset, ex);
                         }
                     };
                 }), results -> {
                     openFiles.decrementAndGet();
-                    try {
-                        raf.close();
-                    } catch(IOException ex) {}
-                    c.accept(results);
+                    rf.close();
+                    c.loadCompleted(results, rf.fileSize, rf.fileUsed);
                 });
     }
 
-    private static Chunk loadChunk(RandomAccessFile raf, int offset, int globalX, int globalZ) throws IOException {
-        final ChunkBuffers buffers = BUFFERS.get();
-        final long file_offset = (long)(offset >> 8) * 4096L;
-        if(raf.getChannel().read(buffers.header, file_offset) != 5)
-            throw new EOFException("Could not read chunk header");
-        final int size = buffers.header.getInt(0) - 1;
-        final int type = buffers.header.get(4);
-        final ByteBuffer compressed = buffers.getCompressed(size);
-        if(raf.getChannel().read(compressed, file_offset + 5) != size)
-            throw new EOFException("Could not read compressed chunk");
-        compressed.flip();
+    private Chunk loadChunk(int offset, int globalX, int globalZ) throws IOException {
+        final var buffers = BUFFERS.get();
+        final var file_offset = (long)(offset >> 8) * 4096L;
+        read(buffers.header, file_offset, "Could not read chunk header");
+        final var size = buffers.header.getInt(0) - 1;
+        final var type = buffers.header.get(4);
+        final var compressed = buffers.getCompressed(size);
+        read(compressed, file_offset + 5, "Could not read compressed chunk");
+        fileUsed += (size + 5 + 4095) & - 4096;
 
         try {
             final NBTTagCompound nbt;
@@ -146,6 +137,39 @@ public class RegionFile {
             throw new IOException(e);
         } catch(java.nio.BufferUnderflowException e) {
             throw new IOException("NBT data corrupted");
+        }
+    }
+
+    public @FunctionalInterface interface LoadCompleted {
+        public void loadCompleted(List<Expected<Chunk>> chunks, long fileSize, long used);
+    }
+
+    private static class ThreadLocalOffsets extends ThreadLocal<ByteBuffer> {
+        @Override
+        protected ByteBuffer initialValue() {
+            return ByteBuffer.allocateDirect(4096);
+        }
+
+        @Override
+        public ByteBuffer get() {
+            final ByteBuffer b = super.get();
+            b.clear();
+            return b;
+        }
+    }
+
+    private static class ThreadLocalChunkBuffers extends ThreadLocal<ChunkBuffers> {
+        @Override
+        protected ChunkBuffers initialValue() {
+            return new ChunkBuffers();
+        }
+
+        @Override
+        public ChunkBuffers get() {
+            final ChunkBuffers buffers = super.get();
+            buffers.header.clear();
+            buffers.uncompressed.clear();
+            return buffers;
         }
     }
 }

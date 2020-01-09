@@ -38,6 +38,9 @@ public class World {
     private Map<Integer, Biome> biomeRegistry = Collections.emptyMap();
     private final HashMap<XZPosition, Chunk> chunks = new HashMap<>();
     private final TreeMap<Integer, MCMap> maps = new TreeMap<>();
+    private int regionFilesCount;
+    private long regionFilesTotalSize;
+    private long regionFilesUsed;
 
     private World() {
     }
@@ -55,6 +58,18 @@ public class World {
                 }).collect(Collectors.toMap(Biome::getNumericID, v -> v));
         if(biomeRegistry.isEmpty())
             biomeRegistry = Biome.VANILLA_BIOMES;
+    }
+
+    public int getRegionFilesCount() {
+        return regionFilesCount;
+    }
+
+    public long getRegionFilesTotalSize() {
+        return regionFilesTotalSize;
+    }
+
+    public long getRegionFilesUsed() {
+        return regionFilesUsed;
     }
 
     public NBTTagCompound getLevel() {
@@ -239,7 +254,10 @@ public class World {
                         }, errors, file);
                 try {
                     total += RegionFile.loadAsync(file, executor, openFiles,
-                            results -> {
+                            (results, fileSize, used) -> {
+                                world.regionFilesCount++;
+                                world.regionFilesTotalSize += fileSize;
+                                world.regionFilesUsed += used;
                                 results.forEach(handler);
                                 incProgress(results.size());
                                 submitAsyncLoads();
