@@ -38,6 +38,7 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
 
     public BlockTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Blocks");
 
         lowerLabel.setLabelFor(subChunkSlider);
         lowerLabel.setHorizontalAlignment(JLabel.RIGHT);

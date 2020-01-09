@@ -34,6 +34,7 @@ public class RegionFile {
     private RegionFile(File file) throws IOException {
         this.raf = new RandomAccessFile(file, "r");
         this.fileSize = raf.length();
+        this.fileUsed = 4096;   // size of the offset table
     }
 
     private void close() {

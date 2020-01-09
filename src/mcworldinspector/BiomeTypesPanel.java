@@ -23,6 +23,7 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
 
     public BiomeTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Biomes");
 
         btnExactShape.setText("Exact biome shape (slower)");
         btnExactShape.addChangeListener(e -> doHighlighting());

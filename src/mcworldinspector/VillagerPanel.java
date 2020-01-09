@@ -37,6 +37,7 @@ public class VillagerPanel extends AbstractFilteredPanel<String> {
 
     public VillagerPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Villagers");
     }
 
     @Override

@@ -13,9 +13,9 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,7 +66,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private final Preferences preferences;
     private final ExecutorService workerPool;
     private final JScrollPane mainarea = new JScrollPane();
-    private final TreeMap<String, InfoPanel> infoPanels;
+    private final ArrayList<InfoPanel> infoPanels;
     private final RenderOptionsPanel renderOptionsPanel;
     private final HighlightListPanel highlightListPanel;
     private final StatusBar statusBar = new StatusBar();
@@ -94,16 +94,17 @@ public class MCWorldInspector extends javax.swing.JFrame {
 
         renderOptionsPanel = new RenderOptionsPanel(this::renderChunks);
         highlightListPanel = new HighlightListPanel();
-        infoPanels = new TreeMap<>();
-        infoPanels.put("Blocks", new BlockTypesPanel(workerPool));
-        infoPanels.put("Entities", new EntityTypesPanel(workerPool));
-        infoPanels.put("Sheep", new SheepColorPanel(workerPool));
-        infoPanels.put("Villagers", new VillagerPanel(workerPool));
-        infoPanels.put("Tile Entities", new TileEntityTypesPanel(workerPool));
-        infoPanels.put("Biomes", new BiomeTypesPanel(workerPool));
-        infoPanels.put("Structures", new StructureTypesPanel(workerPool));
-        infoPanels.put("Misc", new SimpleThingsPanel(workerPool));
-        infoPanels.put("Maps", new MapsPanel());
+        infoPanels = new ArrayList<>();
+        infoPanels.add(new BlockTypesPanel(workerPool));
+        infoPanels.add(new EntityTypesPanel(workerPool));
+        infoPanels.add(new SheepColorPanel(workerPool));
+        infoPanels.add(new DroppedItemPanel(workerPool));
+        infoPanels.add(new VillagerPanel(workerPool));
+        infoPanels.add(new TileEntityTypesPanel(workerPool));
+        infoPanels.add(new BiomeTypesPanel(workerPool));
+        infoPanels.add(new StructureTypesPanel(workerPool));
+        infoPanels.add(new SimpleThingsPanel(workerPool));
+        infoPanels.add(new MapsPanel());
 
         EventQueue.invokeLater(() -> {
             if(!loadBlockColorMap(preferences.get(ACTIVE_COLOR_MAP_KEY, "")))
@@ -202,7 +203,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         renderer = null;
         world = null;
         mainarea.setViewportView(null);
-        infoPanels.values().forEach(InfoPanel::reset);
+        infoPanels.forEach(InfoPanel::reset);
         highlightListPanel.setRenderer(null);
         firePropertyChange("world", oldWorld, world);
     }
@@ -254,7 +255,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         mainarea.setViewportView(renderer);
         renderChunks();
         highlightListPanel.setRenderer(renderer);
-        infoPanels.values().forEach(p -> p.setWorld(world, renderer));
+        infoPanels.forEach(p -> p.setWorld(world, renderer));
         MouseAdapter ma = new MouseAdapter() {
             private int startMouseX;
             private int startMouseY;
@@ -624,7 +625,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         setJMenuBar(createMenuBar());
 
         JTabbedPane tabbed = new JTabbedPane();
-        infoPanels.entrySet().forEach(e -> tabbed.add(e.getKey(), e.getValue().getTabComponent()));
+        infoPanels.forEach(tab -> tabbed.add(tab.getTabComponent()));
         tabbed.add("Render Options", renderOptionsPanel);
 
         JSplitPane infoSplitpane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbed, highlightListPanel);

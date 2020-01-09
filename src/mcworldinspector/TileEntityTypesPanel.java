@@ -24,6 +24,7 @@ public class TileEntityTypesPanel extends AbstractFilteredPanel<String> {
 
     public TileEntityTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Tile Entities");
     }
 
     @Override

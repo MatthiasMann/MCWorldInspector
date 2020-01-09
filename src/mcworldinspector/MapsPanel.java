@@ -24,6 +24,7 @@ public class MapsPanel extends JPanel implements MCWorldInspector.InfoPanel {
 
     public MapsPanel() {
         initComponents();
+        setName("Maps");
 
         mapsTable.getSelectionModel().addListSelectionListener(l -> {
             final var selected = mapsTable.getSelectedRows();

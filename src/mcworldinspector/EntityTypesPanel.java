@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTDoubleArray;
@@ -25,6 +26,7 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
 
     public EntityTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Entities");
     }
 
     @Override
@@ -52,17 +54,23 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
 
     @Override
     protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<String> selected) {
+        return createHighlighter(world, Chunk.filterByID(selected),
+                "Entity details for ");
+    }
+
+    public static Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(
+            World world, Predicate<NBTTagCompound> filter, String titlePrefix) {
         return world.getChunks().parallelStream()
-                .filter(chunk -> chunk.entityTypes().anyMatch(selected::contains))
+                .filter(chunk -> chunk.entities().anyMatch(filter))
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
                     @Override
                     public void showDetailsFor(Component parent) {
                         final var list = chunk.entities()
-                                .filter(Chunk.filterByID(selected))
+                                .filter(filter)
                                 .map(EntityTypesPanel::addEntityLabel)
                                 .collect(Collectors.toList());
                         NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
-                                "Entity details for " + this);
+                                titlePrefix + this);
                     }
                 });
     }

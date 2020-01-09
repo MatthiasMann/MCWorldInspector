@@ -24,6 +24,7 @@ public class StructureTypesPanel extends AbstractFilteredPanel<String> {
 
     public StructureTypesPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Structures");
     }
 
     @Override

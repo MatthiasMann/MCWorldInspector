@@ -30,6 +30,7 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
 
     public SimpleThingsPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Misc");
         initComponents();
     }
 

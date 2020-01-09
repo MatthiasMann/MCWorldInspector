@@ -1,17 +1,13 @@
 package mcworldinspector;
 
-import java.awt.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
-import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
 /**
@@ -26,6 +22,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
 
     public SheepColorPanel(ExecutorService executorService) {
         this.executorService = executorService;
+        setName("Sheep");
     }
 
     @Override
@@ -60,23 +57,14 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
                 .collect(Collectors.toList());
     }
 
+    private static boolean isSheepColor(NBTTagCompound e, List<MCColor> selected) {
+        return MINECRAFT_SHEEP.equals(e.getString("id")) &&
+                selected.contains(MCColor.fromByte(e.get("Color", Byte.class)));
+    }
+
     @Override
     protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<MCColor> selected) {
-        final Predicate<NBTTagCompound> filter = e -> selected.contains(
-                MCColor.fromByte(e.get("Color", Byte.class)));
-        return world.getChunks().parallelStream()
-                .filter(chunk -> chunk.getEntities(MINECRAFT_SHEEP)
-                        .anyMatch(filter))
-                .map(chunk -> new ChunkHighlightEntry(chunk) {
-                    @Override
-                    public void showDetailsFor(Component parent) {
-                        final var list = chunk
-                                .getEntities(MINECRAFT_SHEEP).filter(filter)
-                                .map(EntityTypesPanel::addEntityLabel)
-                                .collect(Collectors.toList());
-                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
-                                "Sheep details for " + this);
-                    }
-                });
+        return EntityTypesPanel.createHighlighter(world,
+                e -> isSheepColor(e, selected), "Sheep details for ");
     }
 }
