@@ -122,6 +122,14 @@ public class World {
         return (pos != null) ? getChunk(pos) : null;
     }
 
+    public XZPosition getSpawnPos() {
+        NBTTagCompound data = level.getCompound("Data");
+        Integer spawnX = data.get("SpawnX", Integer.class);
+        Integer spawnZ = data.get("SpawnZ", Integer.class);
+        return (spawnX != null && spawnZ != null) ?
+                new XZPosition(spawnX, spawnZ) : null;
+    }
+
     public Chunk getSpawnChunk() {
         NBTTagCompound data = level.getCompound("Data");
         Integer spawnX = data.get("SpawnX", Integer.class);

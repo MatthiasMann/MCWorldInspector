@@ -1,5 +1,6 @@
 package mcworldinspector;
 
+import java.awt.Desktop;
 import java.awt.EventQueue;
 import mcworldinspector.utils.ProgressBarDialog;
 import java.awt.Point;
@@ -12,7 +13,11 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
@@ -506,6 +511,8 @@ public class MCWorldInspector extends javax.swing.JFrame {
         return fileMenu;
     }
 
+    private static final Charset UTF8 = Charset.forName("UTF8");
+
     private JMenu createViewMenu() {
         final var viewMenu = new JMenu("View");
         viewMenu.setMnemonic('V');
@@ -549,6 +556,38 @@ public class MCWorldInspector extends javax.swing.JFrame {
             }
         });
         viewLevelDat.setMnemonic('l');
+        final var visitMineAtlas = viewMenu.add(new WorldAction("Visit MineAtlas.com") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(world == null)
+                    return;
+                final var playerPos = world.getPlayerPos();
+                final var pos = (playerPos != null)
+                        ? new XZPosition(
+                            (int)Math.round(playerPos.getDouble(0)),
+                            (int)Math.round(playerPos.getDouble(1)))
+                        : world.getSpawnPos();
+                final var query = new StringBuilder();
+                query.append("levelName=")
+                        .append(URLEncoder.encode(world.getName(), UTF8))
+                        .append("&seed=")
+                        .append(world.getRandomSeed());
+                if(pos != null) {
+                    query.append("&mapCentreX=").append(pos.x)
+                            .append("&mapCentreY=").append(pos.z);
+                }
+                try {
+                    final var uri = new URI("http", "mineatlas.com", "/",
+                            query.toString(), null);
+                    Desktop.getDesktop().browse(uri);
+                } catch (URISyntaxException | IOException ex) {
+                    JOptionPane.showMessageDialog(MCWorldInspector.this,
+                            ex.getMessage(), "Could not open webpage",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        visitMineAtlas.setMnemonic('M');
         final var viewWorldStats = viewMenu.add(new WorldAction("Statistics") {
             @Override
             public void actionPerformed(ActionEvent e) {

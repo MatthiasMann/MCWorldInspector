@@ -35,9 +35,10 @@ public class ChunkHighlightEntry implements WorldRenderer.HighlightEntry {
 
     @Override
     public String toString() {
-        final int x = chunk.getGlobalX();
-        final int z = chunk.getGlobalZ();
-        return "Chunk <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
+        final int x = getX();
+        final int z = getZ();
+        return "Chunk <" + chunk.getGlobalX() + ", " + chunk.getGlobalZ() +
+                "> from <" + x + ", " + z + "> to <" + (x+15) + ", " + (z+15) + '>';
     }
 
     public static Stream<ChunkHighlightEntry> of(Chunk chunk) {
