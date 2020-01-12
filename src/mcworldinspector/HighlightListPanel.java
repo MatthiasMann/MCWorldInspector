@@ -1,6 +1,7 @@
 package mcworldinspector;
 
 import java.awt.Point;
+import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.DefaultListModel;
@@ -32,7 +33,7 @@ public class HighlightListPanel extends JPanel {
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                handleClick(e.getClickCount());
+                handleClick(e.getClickCount(), null);
             };
         });
 
@@ -56,13 +57,17 @@ public class HighlightListPanel extends JPanel {
         }
     }
     
-    private void handleClick(int clickCount) {
+    private void handleClick(int clickCount, Point p) {
         if(clickCount == 2 && renderer != null) {
             final var value = list.getSelectedValue();
             if(value != null) {
                 renderer.flash(value);
+                final var parent = SwingUtilities.getWindowAncestor(this);
                 try {
-                    value.showDetailsFor(SwingUtilities.getWindowAncestor(this));
+                    if(p == null)
+                        value.showDetailsFor(parent);
+                    else
+                        value.showDetailsFor(parent, p);
                 } finally {
                     renderer.flash(null);
                 }
@@ -75,13 +80,13 @@ public class HighlightListPanel extends JPanel {
             return;
         final var selected = list.getSelectedValue();
         if(selected != null && selected.contains(p))
-            handleClick(clickCount);
+            handleClick(clickCount, p);
         else {
             final int idx = renderer.getHighlightsModel().findIndex(e -> e.contains(p));
             if(idx >= 0) {
                 list.setSelectedIndex(idx);
                 list.ensureIndexIsVisible(idx);
-                handleClick(clickCount);
+                handleClick(clickCount, p);
             }
         }
     }

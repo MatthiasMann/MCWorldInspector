@@ -168,7 +168,9 @@ public class WorldRenderer extends JComponent {
                 final BufferedImage img = chunkRenderer.render(world, e.getValue());
                 final XZPosition p = e.getKey();
                 EventQueue.invokeLater(() -> {
-                    images.put(p, img);
+                    final var old = images.put(p, img);
+                    if(old != null)
+                        old.flush();
                     final int zoom16 = zoom * 16;
                     repaint((p.x - min_x) * zoom16, (p.z - min_z) * zoom16,
                             zoom16 * 32, zoom16 * 32);
@@ -431,5 +433,8 @@ public class WorldRenderer extends JComponent {
                     getWidth() * zoom, getHeight() * zoom);
         }
         public default void showDetailsFor(Component parent) {}
+        public default void showDetailsFor(Component parent, Point clicked) {
+            showDetailsFor(parent);
+        }
     }
 }

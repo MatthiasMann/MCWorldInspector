@@ -35,6 +35,7 @@ package mcworldinspector.jtreetable;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.util.EventObject;
 import javax.swing.AbstractCellEditor;
@@ -208,6 +209,11 @@ public class JTreeTable extends JTable {
         public void paint(Graphics g) {
             g.translate(0, -visibleRow * getRowHeight());
             super.paint(g);
+        }
+
+        @Override
+        public void scrollRectToVisible(Rectangle aRect) {
+            JTreeTable.this.scrollRectToVisible(aRect);
         }
 
         /**

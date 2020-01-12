@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.AbstractAction;
@@ -28,6 +29,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTree;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.TreeCellRenderer;
+import javax.swing.tree.TreePath;
 import mcworldinspector.MCColor;
 import mcworldinspector.jtreetable.AbstractTreeTableModel;
 import mcworldinspector.jtreetable.JTreeTable;
@@ -185,6 +187,11 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     }
 
     @Override
+    public Node getRoot() {
+        return (Node)super.getRoot();
+    }
+
+    @Override
     public Object getChild(Object parent, int index) {
         return ((Node)parent).children.get(index);
     }
@@ -202,6 +209,12 @@ public class NBTTreeModel extends AbstractTreeTableModel {
     @Override
     public int getIndexOfChild(Object parent, Object child) {
         return ((Node)parent).children.indexOf(child);
+    }
+
+    public static TreePath getPathForLastChild(TreePath path) {
+        final var children = ((Node)path.getLastPathComponent()).children;
+        final var size = children.size();
+        return size == 0 ? null : path.pathByAddingChild(children.get(size- 1));
     }
 
     private static Node makeRoot(NBTBase nbt) {
@@ -428,6 +441,20 @@ public class NBTTreeModel extends AbstractTreeTableModel {
                 w.endArray();
             }
             w.endObject();
+        }
+
+        public Optional<Node> findChild(String label) {
+            return children.stream()
+                    .filter(n -> n.label.equals(label))
+                    .findFirst();
+        }
+
+        public int size() {
+            return children.size();
+        }
+
+        public Node getChild(int index) {
+            return children.get(index);
         }
     }
     

@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,8 +20,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTDoubleArray;
+import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.Expected;
@@ -98,6 +101,24 @@ public class World {
 
     public Stream<Chunk> chunks() {
         return chunks.values().stream();
+    }
+
+    public Stream<Chunk> chunks(int x0, int z0, int x1, int z1) {
+        if(x1 < x0 || z1 < z0)
+            return Stream.empty();
+        final var width = (x1 - x0) + 1;
+        final var height = (z1 - z0) + 1;
+        return IntStream.range(0, width * height)
+                .mapToObj(idx -> getChunk(x0 + idx % width, z0 + idx / width))
+                .filter(Objects::nonNull);
+    }
+
+    public Stream<Chunk> chunks(NBTIntArray bb) {
+        if(bb == null || bb.size() != 6)
+            return Stream.empty();
+        return chunks(
+                bb.getInt(0) >> 4, bb.getInt(2) >> 4,
+                bb.getInt(3) >> 4, bb.getInt(5) >> 4);
     }
 
     public String getName() {
