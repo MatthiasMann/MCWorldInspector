@@ -117,7 +117,7 @@ public class BlockColorMapGenerator implements Closeable {
                 JSONObject blockState = (JSONObject) o;
                 if(blockState.has("variants")) {
                     final JSONObject variants = blockState.getJSONObject("variants");
-                    for(String key : variants.sortedKeys()) {
+                    for(String key : variants.keySet()) {
                         try {
                             Object variant = variants.get(key);
                             if(variant instanceof JSONArray)
@@ -170,13 +170,14 @@ public class BlockColorMapGenerator implements Closeable {
             Object blockState = parseJSON(e);
             if(blockState instanceof JSONObject) {
                 JSONObject textures = ((JSONObject)blockState).getJSONObject("textures");
-                if(textures.length() == 0)
+                if(textures.isEmpty())
                     return null;
-                Optional<String> textureName = Stream.of(TEXTURE_ORDER).filter(textures::has).findFirst();
-                final FileRef textureEntry = findEntry(ns, "textures",
-                        textures.getString(textureName.orElseGet(
-                                () -> textures.sortedKeys().iterator().next())),
-                        ".png");
+                final var textureName = Stream.of(TEXTURE_ORDER)
+                        .filter(textures::has)
+                        .findFirst()
+                        .orElseGet(textures.keys()::next);
+                final var textureEntry = findEntry(ns, "textures",
+                        textures.getString(textureName), ".png");
                 if(textureEntry != null)
                     return processTexture(textureEntry);
             }
