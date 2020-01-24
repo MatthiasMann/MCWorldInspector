@@ -26,7 +26,8 @@ public class ChestSearchDialog extends javax.swing.JDialog {
     }
 
     public void installAutoCompletion(List<String> items) {
-        TextFieldAutoCompletion.install(tfItem, items);
+        if(!items.isEmpty())
+            TextFieldAutoCompletion.install(tfItem, items);
     }
 
     public String getItem() {
