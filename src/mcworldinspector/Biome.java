@@ -33,7 +33,7 @@ public class Biome implements Comparable<Biome> {
 
     public Biome(String namespacedID, int numericID) {
         Biome biome = VANILLA_BIOME_NAMES.getOrDefault(namespacedID, UNKNOWN);
-        this.name = (biome == UNKNOWN) ? biome.name : namespacedID;
+        this.name = (biome != UNKNOWN) ? biome.name : namespacedID;
         this.namespacedID = namespacedID;
         this.numericID = numericID;
         this.temperature = biome.temperature;
