@@ -67,7 +67,7 @@ public class BiomeTypesPanel extends AbstractFilteredPanel<Biome> {
                     return Stream.empty();
                 final var og = new ChunkHighlightEntry.WithOverlay(chunk);
                 for(int idx=0 ; idx<256 ; ++idx) {
-                    if(bm.test(chunkBiomes.getInt(idx)))
+                    if(bm.test(chunkBiomes.getBiome(idx)))
                         og.setRGB(idx & 15, idx >> 4, 0xFFFF0000);
                 }
                 return og.stream();

@@ -27,8 +27,6 @@ import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.Timer;
-import mcworldinspector.nbt.NBTIntArray;
-import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.utils.SimpleListModel;
 
 /**
@@ -196,16 +194,18 @@ public class WorldRenderer extends JComponent {
             assert(!chunk.isEmpty());
             if(prevX != chunk.getLocalX() || prevZ + 1 != chunk.getLocalZ()) {
                 Chunk aboveChunk;
+                Chunk.HeightMap hm;
                 if(chunk.getLocalZ() == 0 && (aboveChunk = world.getChunk(
                         chunk.getGlobalX(), chunk.getGlobalZ() - 1)) != null &&
-                        !aboveChunk.isEmpty())
-                    Chunk.getHeights(aboveChunk.getHeightmap(withLeaves), 15, prevY);
+                        (hm = aboveChunk.getHeightmap(withLeaves)) != null)
+                    hm.getHeights(15, prevY);
                 else
                     Arrays.fill(prevY, -1);
             }
-            img.getRaster().setDataElements(
-                    chunk.getLocalX()*16, chunk.getLocalZ()*16, 16, 16,
-                    renderChunk(chunk, withLeaves, biomeRegistry, prevY));
+            final var data = renderChunk(chunk, withLeaves, biomeRegistry, prevY);
+            if(data != null)
+                img.getRaster().setDataElements(chunk.getLocalX()*16,
+                        chunk.getLocalZ()*16, 16, 16, data);
             prevX = chunk.getLocalX();
             prevZ = chunk.getLocalZ();
         }
@@ -327,11 +327,13 @@ public class WorldRenderer extends JComponent {
     }
 
     private static int[] renderChunk(Chunk chunk, boolean withLeaves, Map<Integer, Biome> biomeRegistry, int[] prevY) {
-        final NBTIntArray biomes = chunk.getBiomes();
-        final NBTLongArray heightmap = chunk.getHeightmap(withLeaves);
+        final var biomes = chunk.getBiomes();
+        final Chunk.HeightMap heightmap = chunk.getHeightmap(withLeaves);
+        if(heightmap == null)
+            return null;
         final int[] data = new int[256];
         for(int idx=0 ; idx<256 ; idx++) {
-            final int top = Chunk.getHeight(heightmap, idx) - 1;
+            final int top = heightmap.getHeight(idx) - 1;
             SubChunk sc;
             if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
                 final int index = sc.getBlockIndex(idx, top);
@@ -351,7 +353,7 @@ public class WorldRenderer extends JComponent {
     }
 
     private static int[] renderChunkLayer(Chunk chunk, Map<Integer, Biome> biomeRegistry, int layer) {
-        final NBTIntArray biomes = chunk.getBiomes();
+        final var biomes = chunk.getBiomes();
         final int[] data = new int[256];
         chunk.forEachCaveFloorBlock(layer, (xz,y,sc,index) -> {
             int color = getBlockColor(sc, index, biomes, xz, biomeRegistry, y);
@@ -375,7 +377,7 @@ public class WorldRenderer extends JComponent {
         return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
-    private static int getBlockColor(SubChunk sc, final int index, NBTIntArray biomes, int idx, Map<Integer, Biome> biomeRegistry, final int top) {
+    private static int getBlockColor(SubChunk sc, final int index, Chunk.Biomes biomes, int idx, Map<Integer, Biome> biomeRegistry, final int top) {
         BlockColorMap.MappedBlockPalette mbc = sc.mappedBlockColors();
         int color = mbc.getColor(index);
         int tinting = mbc.getTinting(index);
@@ -384,9 +386,9 @@ public class WorldRenderer extends JComponent {
         return color;
     }
 
-    private static int adjustColorByBiome(NBTIntArray biomes, int xz, Map<Integer, Biome> biomeRegistry, int y, int tinting, int color) {
-        final Biome biome = (biomes != null && biomes.size() == 256)
-                ? biomeRegistry.getOrDefault(biomes.getInt(xz), Biome.UNKNOWN)
+    private static int adjustColorByBiome(Chunk.Biomes biomes, int xz, Map<Integer, Biome> biomeRegistry, int y, int tinting, int color) {
+        final Biome biome = (biomes != null)
+                ? biomeRegistry.getOrDefault(biomes.getBiome(xz), Biome.UNKNOWN)
                 : Biome.UNKNOWN;
         int elevation = Math.max(0, y - 64);
         int biomeColor;

@@ -44,13 +44,13 @@ public class World {
     private int regionFilesCount;
     private long regionFilesTotalSize;
     private long regionFilesUsed;
+    private SubChunk12.GlobalMapping globalMapping12;
 
     private World() {
     }
 
     private void finish() {
-        biomeRegistry = level.getCompound("fml").getCompound("Registries")
-                .getCompound("minecraft:biome")
+        biomeRegistry = getRegistry("minecraft:biome", "minecraft:biomes")
                 .getList("ids", NBTTagCompound.class)
                 .stream().flatMap(biome -> {
                     Integer value = biome.get("V", Integer.class);
@@ -61,6 +61,23 @@ public class World {
                 }).collect(Collectors.toMap(Biome::getNumericID, v -> v));
         if(biomeRegistry.isEmpty())
             biomeRegistry = Biome.VANILLA_BIOMES;
+
+        final var dataVersion = level.getCompound("Data")
+                .get("DataVersion", Integer.class, 0);
+        if(dataVersion == 1343) {
+            final var gm = new SubChunk12.GlobalMapping(level);
+            globalMapping12 = gm;
+            chunks.values().parallelStream()
+                    .flatMap(Chunk::subChunks)
+                    .forEach(sc -> {
+                        if(sc instanceof SubChunk12)
+                            ((SubChunk12)sc).setGlobalMapping(gm);
+                    });
+        }
+    }
+
+    public SubChunk12.GlobalMapping getGlobalMapping12() {
+        return globalMapping12;
     }
 
     public int getRegionFilesCount() {
@@ -77,6 +94,17 @@ public class World {
 
     public NBTTagCompound getLevel() {
         return level;
+    }
+
+    public NBTTagCompound getFML() {
+        final var fml = level.getCompound("fml");
+        return fml.isEmpty() ? level.getCompound("FML") : fml;
+    }
+
+    public NBTTagCompound getRegistry(String name, String altName) {
+        final var registries = getFML().getCompound("Registries");
+        final var r = registries.getCompound(name);
+        return r.isEmpty() ? registries.getCompound(altName) : r;
     }
 
     public Collection<Chunk> getChunks() {

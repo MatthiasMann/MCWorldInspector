@@ -69,8 +69,8 @@ public class EntityTypesPanel extends AbstractFilteredPanel<String> {
                                 .filter(filter)
                                 .map(EntityTypesPanel::addEntityLabel)
                                 .collect(Collectors.toList());
-                        NBTTreeModel.displayNBT(parent, new NBTTreeModel(list),
-                                titlePrefix + this);
+                        NBTTreeModel.displayNBT(parent, list, titlePrefix + this,
+                                e -> MCItem.createChestView(world, e, null));
                     }
                 });
     }

@@ -3,98 +3,41 @@ package mcworldinspector;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbt.NBTTagList;
-import mcworldinspector.utils.IntPredicateBuilder;
 
 /**
  *
  * @author matthias
  */
-public class SubChunk {
+public interface SubChunk {
 
     public static final byte NORMAL = 0;
     public static final byte AIR = 1;
     public static final byte WATER = 2;
 
-    private final NBTTagList<NBTTagCompound> palette;
-    private final NBTLongArray blockStates;
-    private final byte[] blockTypes;
-    private final byte globalY;
-    private final byte bits_per_blockstate;
-    private BlockColorMap.MappedBlockPalette mappedPalette = BlockColorMap.MappedBlockPalette.EMPTY;
+    int getGlobalY();
 
-    public SubChunk(NBTTagList<NBTTagCompound> palette, NBTLongArray blockStates, byte globalY) {
-        this.palette = palette;
-        this.blockStates = blockStates;
-        this.blockTypes = new byte[palette.size()];
-        this.bits_per_blockstate = (byte)Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size()-1));
-        this.globalY = globalY;
+    Stream<String> getBlockTypes();
 
-        for(int idx=0 ; idx<palette.size() ; ++idx) {
-            String name = palette.get(idx).getString("Name");
-            switch (name) {
-                case "minecraft:cave_air":
-                case "minecraft:air":
-                    blockTypes[idx] = AIR;
-                    break;
-                case "minecraft:water":
-                case "minecraft:bubble_column":
-                    blockTypes[idx] = WATER;
-                    break;
-            }
-        }
-    }
+    NBTTagCompound getBlockFromPalette(int index);
 
-    public int getGlobalY() {
-        return globalY & 255;
-    }
+    int getBlockIndex(int xz, int y);
 
-    public Stream<String> getBlockTypes() {
-        return palette.stream().map(e -> e.getString("Name"));
-    }
-    
-    public int getBlockIndex(int xz, int y) {
-        final int bits = bits_per_blockstate & 255;
-        return blockStates.getBits((xz + ((y & 15) << 8)) * bits, bits);
-    }
+    byte getBlockType(int index);
 
-    public NBTTagCompound getBlockFromPalette(int index) {
-        return (index >= 0 && index < palette.size()) ? palette.get(index) : null;
-    }
-
-    public byte getBlockType(int index) {
-        return (index >= 0 && index < blockTypes.length) ? blockTypes[index] : NORMAL;
-    }
-
-    public byte getBlockType(int xz, int y) {
+    default byte getBlockType(int xz, int y) {
         return getBlockType(getBlockIndex(xz, y));
     }
 
-    public int getTopBlockIndexBelowLayer(int xz, int y, int ignoreMask) {
-        final int bits = bits_per_blockstate & 255;
-        final NBTLongArray bs = blockStates;
-        do {
-            final int index = bs.getBits((y * 256 + xz) * bits, bits);
-            if((getBlockType(index) & ignoreMask) == 0)
-                return index;
-        } while (y-- > 0);
-        return -1;
-    }
+    int getTopBlockIndexBelowLayer(int xz, int y, int ignoreMask);
 
-    public void mapBlockColors(BlockColorMap bcm) {
-        mappedPalette = bcm.map(palette);
-    }
+    void mapBlockColors(BlockColorMap bcm);
 
-    public BlockColorMap.MappedBlockPalette mappedBlockColors() {
-        return mappedPalette;
-    }
+    BlockColorMap.MappedBlockPalette mappedBlockColors();
+
+    Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset);
 
     public static class BlockInfo extends BlockPos {
         public final NBTTagCompound block;
@@ -137,41 +80,5 @@ public class SubChunk {
             }
             return sb;
         }
-    }
-
-    public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
-        class Builder extends IntPredicateBuilder<Stream<BlockInfo>> {
-            @Override
-            public Stream<BlockInfo> build() {
-                return Stream.empty();
-            }
-            @Override
-            public Stream<BlockInfo> build(int index) {
-                final var bits = bits_per_blockstate & 255;
-                final var bs = blockStates;
-                final var block = palette.get(index);
-                return IntStream.range(0, 4096)
-                        .filter(pos -> index == bs.getBits(pos*bits, bits))
-                        .mapToObj(pos -> new BlockInfo(pos, offset, block));
-            }
-            @Override
-            public Stream<BlockInfo> build(int[] array, int count) {
-                final var pal = palette;
-                final var bits = bits_per_blockstate & 255;
-                final var bs = blockStates;
-                return IntStream.range(0, 4096).mapToObj(pos -> {
-                    final var value = bs.getBits(pos*bits, bits);
-                    for(int idx=0 ; idx<count ; ++idx)
-                        if(array[idx] == value)
-                            return new BlockInfo(pos, offset, pal.get(value));
-                    return null;
-                }).filter(Objects::nonNull);
-            }
-        }
-        final var b = new Builder();
-        final var pal = palette;
-        return IntPredicateBuilder.of(blockTypes.stream().flatMapToInt(
-                blockType -> IntStream.range(0, pal.size()).filter(
-                        idx -> blockType.equals(pal.get(idx).getString("Name")))), b);
     }
 }

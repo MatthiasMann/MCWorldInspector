@@ -295,8 +295,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 lastMousePos = renderer.component2mc(e.getPoint());
                 final Chunk chunk = getMouseChunk();
                 if(chunk != null) {
-                    final Biome biome = chunk.getBiome(lastMousePos.x & 15,
-                            lastMousePos.y & 15, world.getBiomeRegistry());
+                    final var biomes = chunk.getBiomes();
+                    final Biome biome = (biomes != null) ? biomes.getBiome(
+                            lastMousePos.x & 15, lastMousePos.y & 15,
+                            world.getBiomeRegistry()) : null;
                     statusBarBiome.setText(biome != null ? biome.name : "");
                     updateStatusBarBlockInfo(chunk);
                 } else {

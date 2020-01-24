@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import mcworldinspector.nbt.NBTByteArray;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTLongArray;
 import mcworldinspector.nbt.NBTTagCompound;
@@ -20,6 +21,7 @@ import mcworldinspector.nbt.NBTTagList;
  */
 public class Chunk extends XZPosition {
 
+    private static final String HEIGHTMAP = "HeightMap";
     private static final String HEIGHTMAPS = "Heightmaps";
     private static final String HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES = "MOTION_BLOCKING_NO_LEAVES";
     private static final String HEIGHTMAP_MOTION_BLOCKING = "MOTION_BLOCKING";
@@ -32,11 +34,17 @@ public class Chunk extends XZPosition {
         this.level = nbt.getCompound("Level");
         for(NBTTagCompound s : level.getList("Sections", NBTTagCompound.class)) {
             int y = ((Number)s.get("Y")).intValue();
-            NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
-            NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
-            if(y >= 0 && y < subchunks.length && !palette.isEmpty() &&
-                    blockStates != null && !blockStates.isEmpty())
-                subchunks[y] = new SubChunk(palette, blockStates, (byte)(y << 4));
+            if(y >= 0 && y < subchunks.length) {
+                NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
+                NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
+                if(!palette.isEmpty() && blockStates != null && !blockStates.isEmpty())
+                    subchunks[y] = new SubChunk14(palette, blockStates, (byte)(y << 4));
+                else {
+                    NBTByteArray blocks = s.get("Blocks", NBTByteArray.class);
+                    NBTByteArray add = s.get("Add", NBTByteArray.class);
+                    subchunks[y] = new SubChunk12(blocks, add, (byte)(y << 4));
+                }
+            }
         }
     }
 
@@ -60,6 +68,10 @@ public class Chunk extends XZPosition {
         return new XZPosition(x & ~31, z & ~31);
     }
 
+    public NBTTagCompound getLevel() {
+        return level;
+    }
+
     public boolean isSlimeChunk(long seed) {
         Random rnd = new Random(seed +
                 (long) (x * x * 0x4c1906) +
@@ -70,29 +82,20 @@ public class Chunk extends XZPosition {
     }
 
     public boolean isEmpty() {
-        final NBTTagCompound heightmaps = level.getCompound(HEIGHTMAPS);
-        return heightmaps.isEmpty() ||
-                heightmaps.get(HEIGHTMAP_MOTION_BLOCKING, NBTLongArray.class) == null ||
-                heightmaps.get(HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES, NBTLongArray.class) == null;
+        return getHeightmap(true) == null;
     }
 
     public SubChunk getSubChunk(int y) {
         return subchunks[y];
     }
 
-    public NBTIntArray getBiomes() {
-        return level.get("Biomes", NBTIntArray.class);
-    }
-    
-    public Biome getBiome(int xz, Map<Integer, Biome> biomeRegistry) {
-        final NBTIntArray biomes = getBiomes();
-        if(biomes != null && biomes.size() == 256)
-            return biomeRegistry.get(biomes.getInt(xz));
+    public Biomes getBiomes() {
+        final var biomes = level.get("Biomes");
+        if(biomes instanceof NBTIntArray)
+            return Biomes.of((NBTIntArray)biomes);
+        if(biomes instanceof NBTByteArray)
+            return Biomes.of((NBTByteArray)biomes);
         return null;
-    }
-
-    public Biome getBiome(int x, int z, Map<Integer, Biome> biomeRegistry) {
-        return getBiome(z*16 + x, biomeRegistry);
     }
 
     public static @FunctionalInterface interface WrapBlock<R> {
@@ -105,24 +108,19 @@ public class Chunk extends XZPosition {
                 sc.getBlockFromPalette(index));
     }
 
-    public NBTLongArray getHeightmap(boolean withLeaves) {
+    public HeightMap getHeightmap(boolean withLeaves) {
         final NBTTagCompound heightmaps = level.getCompound(HEIGHTMAPS);
-        return heightmaps.get(withLeaves ? HEIGHTMAP_MOTION_BLOCKING
-                : HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES, NBTLongArray.class);
+        if(heightmaps.isEmpty())
+            return HeightMap.of(level.get(HEIGHTMAP, NBTIntArray.class));
+        return HeightMap.of(heightmaps.get(withLeaves
+                ? HEIGHTMAP_MOTION_BLOCKING
+                : HEIGHTMAP_MOTION_BLOCKING_NO_LEAVES, NBTLongArray.class));
     }
 
-    public static int getHeight(NBTLongArray heightmap, int xz) {
-        return heightmap.getBits(xz*9, 9);
-    }
-
-    public static void getHeights(NBTLongArray heightmap, int z, int[] heights) {
-        int bitIdx = z * 16 * 9;
-        for(int xx=0 ; xx<16 ; xx++, bitIdx += 9)
-            heights[xx] = heightmap.getBits(bitIdx, 9) - 1;
-    }
-
-    public<R> R getTopBlock(NBTLongArray heightmap, int xz, WrapBlock<R> wrap) {
-        final int top = heightmap.getBits(xz*9, 9) - 1;
+    public<R> R getTopBlock(HeightMap heightmap, int xz, WrapBlock<R> wrap) {
+        if(heightmap == null)
+            return null;
+        final int top = heightmap.getHeight(xz) - 1;
         SubChunk sc;
         if(top >= 0 && top < 256 && (sc = subchunks[top >> 4]) != null) {
             final int index = sc.getBlockIndex(xz, top);
@@ -132,7 +130,7 @@ public class Chunk extends XZPosition {
         return null;
     }
 
-    public SubChunk.BlockInfo getTopBlockInfo(NBTLongArray heightmap, int x, int z) {
+    public SubChunk.BlockInfo getTopBlockInfo(HeightMap heightmap, int x, int z) {
         return getTopBlock(heightmap, z*16 + x, makeBlockInfo());
     }
 
@@ -245,7 +243,7 @@ public class Chunk extends XZPosition {
     }
 
     public IntStream biomes() {
-        final NBTIntArray biomes = getBiomes();
+        final var biomes = getBiomes();
         return (biomes == null) ? IntStream.empty() : biomes.stream();
     }
 
@@ -266,5 +264,71 @@ public class Chunk extends XZPosition {
             final var id = v.getString("id");
             return id != null && ids.contains(id);
         };
+    }
+
+    public @FunctionalInterface interface HeightMap {
+        public int getHeight(int xz);
+        
+        default void getHeights(int z, int[] heights) {
+            for(int x=0 ; x<16 ; x++)
+                heights[x] = getHeight((z << 4) | x) - 1;
+        }
+
+        public static HeightMap of(NBTLongArray a) {
+            if(a == null || a.size() != 36)
+                return null;
+            return xz -> a.getBits(xz * 9, 9);
+        }
+        public static HeightMap of(NBTIntArray a) {
+            if(a == null || a.size() != 256)
+                return null;
+            return xz -> a.getInt(xz);
+        }
+    }
+
+    public interface Biomes {
+        public int getBiome(int xz);
+
+        public IntStream stream();
+
+        default Biome getBiome(int xz, Map<Integer, Biome> biomeRegistry) {
+            return biomeRegistry.get(getBiome(xz));
+        }
+
+        default Biome getBiome(int x, int z, Map<Integer, Biome> biomeRegistry) {
+            return getBiome(z*16 + x, biomeRegistry);
+        }
+
+        public static Biomes of(NBTIntArray a) {
+            if(a == null || a.size() != 256)
+                return null;
+            return new Biomes() {
+                @Override
+                public int getBiome(int xz) {
+                    return a.getInt(xz);
+                }
+
+                @Override
+                public IntStream stream() {
+                    return a.stream();
+                }
+            };
+        }
+
+        public static Biomes of(NBTByteArray a) {
+            if(a == null || a.size() != 256)
+                return null;
+            return new Biomes() {
+                @Override
+                public int getBiome(int xz) {
+                    return a.getUnsigned(xz);
+                }
+
+                @Override
+                public IntStream stream() {
+                    return a.stream();
+                }
+            };
+        }
     }
 }

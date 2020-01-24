@@ -2,9 +2,12 @@ package mcworldinspector;
 
 import java.awt.event.ActionEvent;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JPopupMenu;
 import javax.swing.JTable;
 import javax.swing.table.AbstractTableModel;
@@ -107,6 +110,25 @@ public class MCItem {
         return isValidItemID(id)
                 ? Stream.of(new MCItem(id, count / conv, slot, NBTTagCompound.EMPTY))
                 : Stream.empty();
+    }
+
+    public static Stream<? extends JComponent> createChestView(World world,
+            Map.Entry<String, NBTTagCompound> e, String highlightItem) {
+        final var id = e.getValue().getString("id");
+        if(id == null)
+            return Stream.empty();
+        final var items = MCItem.getChestContent(e.getValue(), id)
+                .collect(Collectors.toList());
+        if(items.isEmpty())
+            return Stream.empty();
+        final var table = MCItem.createInventoryView(world, items);
+        if(highlightItem != null) {
+            for(int idx=0 ; idx<items.size() ; idx++) {
+                if(items.get(idx).id.equals(highlightItem))
+                    table.getSelectionModel().addSelectionInterval(idx, idx);
+            }
+        }
+        return Stream.of(NBTTreeModel.wrapInScrollPane(table, e.getKey()));
     }
 
     public static JTable createInventoryView(World world, List<MCItem> items) {

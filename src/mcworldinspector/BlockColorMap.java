@@ -84,6 +84,20 @@ public class BlockColorMap {
         return new MappedBlockPalette(colors, tinting);
     }
 
+    public MappedBlockPalette map(String[] palette) {
+        final int[] colors = new int[palette.length];
+        final byte[] tinting = new byte[palette.length];
+        for(int idx=0 ; idx<palette.length ; ++idx) {
+            String name = palette[idx];
+            BlockColorInfo bci = blocks.get(name);
+            if(bci != null) {
+                colors[idx] = bci.color;
+                tinting[idx] = (byte)bci.tinting;
+            }
+        }
+        return new MappedBlockPalette(colors, tinting);
+    }
+
     public static BlockColorMap load(InputStream is) throws IOException {
         try(InputStreamReader isr = new InputStreamReader(is, "UTF8");
                 BufferedReader br = new BufferedReader(isr)) {

@@ -1,6 +1,5 @@
 package mcworldinspector;
 
-import java.awt.Component;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -13,9 +12,7 @@ import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
-import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
-import mcworldinspector.nbttree.NBTTreeModel;
 import mcworldinspector.utils.AsyncExecution;
 
 /**
@@ -178,10 +175,8 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         if(searchChestDlg == null) {
             final World world = this.world;
             final ChestSearchDialog dlg = new ChestSearchDialog(SwingUtilities.getWindowAncestor(this));
-            AsyncExecution.submitNoThrow(executorService, () -> world.getLevel()
-                    .getCompound("fml")
-                    .getCompound("Registries")
-                    .getCompound("minecraft:item")
+            AsyncExecution.submitNoThrow(executorService, () ->
+                    world.getRegistry("minecraft:item", "minecraft:items")
                     .getList("ids", NBTTagCompound.class).stream()
                     .map(item -> item.getString("K"))
                     .filter(Objects::nonNull)
@@ -194,7 +189,7 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         final var item = searchChestDlg.getItem();
         final var itemPred = MCItem.filterByID(item);
         highlightTileEntity(tile -> MCItem.getChestContent(tile).anyMatch(itemPred),
-                "Chests containing " + item, e -> createChestView(e, item));
+                "Chests containing " + item, e -> MCItem.createChestView(world, e, item));
     }//GEN-LAST:event_btnSearchChestsActionPerformed
 
     private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed
@@ -210,13 +205,15 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             final Noise noise = new Noise(new Random(2345));
             int plainsID = optPlains.get().numericID;
             highlight(world.getChunks().parallelStream().flatMap(chunk -> {
+                final var biomes = chunk.getBiomes();
+                if(biomes == null)
+                    return Stream.empty();
                 final int chunkX = chunk.getGlobalX() << 4;
                 final int chunkZ = chunk.getGlobalZ() << 4;
-                final NBTIntArray biomes = chunk.getBiomes();
                 final ChunkHighlightEntry.WithOverlay og =
                         new ChunkHighlightEntry.WithOverlay(chunk);
                 for(int idx=0 ; idx<256 ; ++idx) {
-                    if(biomes.getInt(idx) == plainsID) {
+                    if(biomes.getBiome(idx) == plainsID) {
                         final int x = idx & 15;
                         final int z = idx >> 4;
                         final double value = noise.nose2d(
@@ -245,22 +242,8 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             Function<Map.Entry<String, NBTTagCompound>, Stream<? extends JComponent>> createTabs) {
         highlight(world.chunks().filter(chunk -> chunk.tileEntities()
                 .anyMatch(filter))
-                .map(chunk -> new TileEntityHighlightEntry(chunk, title, filter, createTabs)));
-    }
-
-    private Stream<? extends JComponent>
-         createChestView(Map.Entry<String, NBTTagCompound> e, String highlightItem) {
-        final var id = e.getValue().getString("id");
-        if(id == null)
-            return Stream.empty();
-        final var items = MCItem.getChestContent(e.getValue(), id)
-                .collect(Collectors.toList());
-        final var table = MCItem.createInventoryView(world, items);
-        for(int idx=0 ; idx<items.size() ; idx++) {
-            if(items.get(idx).id.equals(highlightItem))
-                table.getSelectionModel().addSelectionInterval(idx, idx);
-        }
-        return Stream.of(NBTTreeModel.wrapInScrollPane(table, e.getKey()));
+                .map(chunk -> new TileEntityTypesPanel.TileEntityHighlightEntry(
+                        chunk, title, filter, createTabs)));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -271,37 +254,4 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     private javax.swing.JButton btnSpawnChunk;
     private javax.swing.JButton btnTulpis;
     // End of variables declaration//GEN-END:variables
-
-    private class TileEntityHighlightEntry extends ChunkHighlightEntry {
-        private final String titlePrefix;
-        private final Predicate<NBTTagCompound> filter;
-        private final Function<Map.Entry<String, NBTTagCompound>,
-                Stream<? extends JComponent>> createTabs;
-
-        public TileEntityHighlightEntry(Chunk chunk, String titlePrefix, Predicate<NBTTagCompound> filter,
-                Function<Map.Entry<String, NBTTagCompound>, Stream<? extends JComponent>> createTabs) {
-            super(chunk);
-            this.titlePrefix = titlePrefix;
-            this.filter = filter;
-            this.createTabs = createTabs;
-        }
-
-        @Override
-        public void showDetailsFor(Component parent) {
-            final var list = chunk.tileEntities()
-                    .filter(filter)
-                    .map(TileEntityTypesPanel::addTileEntityLabel)
-                    .collect(Collectors.toList());
-            final var title = titlePrefix + this;
-            final var nbtTreeModel = new NBTTreeModel(list);
-            if(createTabs == null)
-                NBTTreeModel.displayNBT(parent, nbtTreeModel, title);
-            else {
-                final var tabs = list.stream()
-                        .flatMap(createTabs)
-                        .collect(Collectors.toList());
-                NBTTreeModel.displayNBT(parent, nbtTreeModel, title, tabs);
-            }
-        }
-    }
 }

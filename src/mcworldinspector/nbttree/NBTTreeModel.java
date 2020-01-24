@@ -15,8 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -103,6 +106,19 @@ public class NBTTreeModel extends AbstractTreeTableModel {
         tabbedPane.add("NBT", wrapInScrollPane(createNBTreeTable(model)));
         tabs.forEach(tabbedPane::add);
         JOptionPane.showMessageDialog(parent, tabbedPane, title, JOptionPane.PLAIN_MESSAGE);
+    }
+
+    public static<T extends NBTTagCompound> void displayNBT(Component parent,
+            List<Map.Entry<String, T>> list, String title,
+            Function<Map.Entry<String, T>, Stream<? extends JComponent>> createTabs) {
+        final var nbtTreeModel = new NBTTreeModel(list);
+        final List<? extends JComponent> tabs = (createTabs == null)
+                ? Collections.emptyList() : list.stream()
+                        .flatMap(createTabs).collect(Collectors.toList());
+        if(tabs.isEmpty())
+            displayNBT(parent, nbtTreeModel, title);
+        else
+            displayNBT(parent, nbtTreeModel, title, tabs);
     }
 
     public static void addContextMenu(JTreeTable treeTable) {

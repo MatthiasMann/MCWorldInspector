@@ -79,6 +79,10 @@ public abstract class NBTTagCompound extends NBTBase {
         return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : NBTTagList.EMPTY;
     }
 
+    public static NBTTagCompound of(String key0, Object value0) {
+        return new Single(key0, value0);
+    }
+
     public static NBTTagCompound parse(ByteBuffer data) {
         if(data.get() != 10)
             throw new IllegalArgumentException("Root tag must be an NBTTagCompound");
