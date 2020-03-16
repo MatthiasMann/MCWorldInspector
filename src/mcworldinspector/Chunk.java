@@ -42,7 +42,8 @@ public class Chunk extends XZPosition {
                 else {
                     NBTByteArray blocks = s.get("Blocks", NBTByteArray.class);
                     NBTByteArray add = s.get("Add", NBTByteArray.class);
-                    subchunks[y] = new SubChunk12(blocks, add, (byte)(y << 4));
+                    if(blocks != null && add != null)
+                        subchunks[y] = new SubChunk12(blocks, add, (byte)(y << 4));
                 }
             }
         }
