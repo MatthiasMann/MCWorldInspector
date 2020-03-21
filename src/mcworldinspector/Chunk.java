@@ -301,19 +301,40 @@ public class Chunk extends XZPosition {
         }
 
         public static Biomes of(NBTIntArray a) {
-            if(a == null || a.size() != 256)
+            if(a == null)
                 return null;
-            return new Biomes() {
-                @Override
-                public int getBiome(int xz) {
-                    return a.getInt(xz);
-                }
+            switch (a.size()) {
+                case 256:
+                    return new Biomes() {
+                        @Override
+                        public int getBiome(int xz) {
+                            return a.getInt(xz);
+                        }
 
-                @Override
-                public IntStream stream() {
-                    return a.stream();
-                }
-            };
+                        @Override
+                        public IntStream stream() {
+                            return a.stream();
+                        }
+                    };
+                case 1024:
+                    // simple implementation to get it 1.15 compatible
+                    return new Biomes() {
+                        @Override
+                        public int getBiome(int xz) {
+                            int x = xz & 15;
+                            int z = xz >> 4;
+                            int y = 64;
+                            return a.getInt((x >> 2) | ((z >> 2) << 2) | ((y >> 2) << 4));
+                        }
+
+                        @Override
+                        public IntStream stream() {
+                            return IntStream.range(0, 256).map(this::getBiome);
+                        }
+                    };
+                default:
+                    return null;
+            }
         }
 
         public static Biomes of(NBTByteArray a) {
