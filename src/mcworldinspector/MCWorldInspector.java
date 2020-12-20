@@ -412,7 +412,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
             preferences.put("recent_folder_nbt", jfc.getCurrentDirectory().getAbsolutePath());
             final File file = jfc.getSelectedFile();
             try {
-                final var buffer = FileHelpers.loadFile(file, 1<<20);
+                final var buffer = FileHelpers.loadFile(file, 2<<20);
                 final var nbt = NBTTagCompound.parseGuess(buffer);
                 NBTTreeModel.displayNBT(this, nbt, file.getAbsolutePath());
             } catch(Exception ex) {

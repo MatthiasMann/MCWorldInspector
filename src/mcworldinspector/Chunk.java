@@ -31,6 +31,7 @@ public class Chunk extends XZPosition {
 
     public Chunk(int globalX, int globalZ, NBTTagCompound nbt) {
         super(globalX, globalZ);
+        final int dataVersion = nbt.get("DataVersion", Integer.class);
         this.level = nbt.getCompound("Level");
         for(NBTTagCompound s : level.getList("Sections", NBTTagCompound.class)) {
             int y = ((Number)s.get("Y")).intValue();
@@ -38,7 +39,10 @@ public class Chunk extends XZPosition {
                 NBTTagList<NBTTagCompound> palette = s.getList("Palette", NBTTagCompound.class);
                 NBTLongArray blockStates = s.get("BlockStates", NBTLongArray.class);
                 if(!palette.isEmpty() && blockStates != null && !blockStates.isEmpty())
-                    subchunks[y] = new SubChunk14(palette, blockStates, (byte)(y << 4));
+                    if (dataVersion >= 0xA18)
+                        subchunks[y] = new SubChunk16(palette, blockStates, (byte)(y << 4));
+                    else
+                        subchunks[y] = new SubChunk14(palette, blockStates, (byte)(y << 4));
                 else {
                     NBTByteArray blocks = s.get("Blocks", NBTByteArray.class);
                     NBTByteArray add = s.get("Add", NBTByteArray.class);
@@ -104,9 +108,14 @@ public class Chunk extends XZPosition {
     }
 
     private WrapBlock<SubChunk.BlockInfo> makeBlockInfo()  {
-        return (xz,y,sc,index) -> new SubChunk.BlockInfo(
-                (x << 4) + (xz & 15), y, (z << 4) + (xz >> 4),
-                sc.getBlockFromPalette(index));
+        return (xz, y, sc, index) -> {
+            NBTTagCompound block = sc.getBlockFromPalette(index);
+            if (block == null)
+                return null;
+            return new SubChunk.BlockInfo(
+                    (x << 4) + (xz & 15), y, (z << 4) + (xz >> 4),
+                    block);
+        };
     }
 
     public HeightMap getHeightmap(boolean withLeaves) {
@@ -276,9 +285,17 @@ public class Chunk extends XZPosition {
         }
 
         public static HeightMap of(NBTLongArray a) {
-            if(a == null || a.size() != 36)
+            if(a == null)
                 return null;
-            return xz -> a.getBits(xz * 9, 9);
+            switch(a.size()) {
+                case 36:
+                    return xz -> a.getBits(xz * 9, 9);
+                case 37:
+                    return xz -> (int)(a.get(xz / 7) >>> (9*(xz % 7))) & 0x1FF;
+                default:
+                    System.err.println("Unknown Heightmap format with length " + a.size());
+                    return null;
+            }
         }
         public static HeightMap of(NBTIntArray a) {
             if(a == null || a.size() != 256)

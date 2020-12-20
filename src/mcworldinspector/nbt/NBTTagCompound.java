@@ -103,7 +103,7 @@ public abstract class NBTTagCompound extends NBTBase {
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed, boolean unwarp) throws DataFormatException, IOException {
-        return parseInflate(compressed, ByteBuffer.allocateDirect(1 << 20), unwarp);
+        return parseInflate(compressed, ByteBuffer.allocateDirect(2 << 20), unwarp);
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed) throws DataFormatException, IOException {
