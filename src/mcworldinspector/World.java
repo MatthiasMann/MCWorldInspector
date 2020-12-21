@@ -50,7 +50,7 @@ public class World {
     }
 
     private void finish() {
-        biomeRegistry = getRegistry("minecraft:biome", "minecraft:biomes")
+        biomeRegistry = getRegistry("minecraft:biome", "minecraft:biomes", "minecraft:worldgen/biome")
                 .getList("ids", NBTTagCompound.class)
                 .stream().flatMap(biome -> {
                     Integer value = biome.get("V", Integer.class);
@@ -101,10 +101,9 @@ public class World {
         return fml.isEmpty() ? level.getCompound("FML") : fml;
     }
 
-    public NBTTagCompound getRegistry(String name, String altName) {
+    public NBTTagCompound getRegistry(String... names) {
         final var registries = getFML().getCompound("Registries");
-        final var r = registries.getCompound(name);
-        return r.isEmpty() ? registries.getCompound(altName) : r;
+        return Stream.of(names).map(registries::getCompound).filter(nbt -> !nbt.isEmpty()).findFirst().orElse(NBTTagCompound.EMPTY);
     }
 
     public Collection<Chunk> getChunks() {
