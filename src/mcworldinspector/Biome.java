@@ -128,7 +128,7 @@ public class Biome implements Comparable<Biome> {
     public static final HashMap<String, Biome> VANILLA_BIOME_NAMES = new HashMap<>();
     
     static {
-        Pattern pattern = Pattern.compile("^([^\\t]+)\\t([^\\t]+)\\t(\\d+)\\t(-?[0-9.]+)\\t([0-9.]+)\\t([0-9a-fA-F]{6})$");
+        Pattern pattern = Pattern.compile("^([^\\t]+)\\t([^\\t]+)\\t(-?\\d+)\\t(-?[0-9.]+)\\t([0-9.]+)\\t([0-9a-fA-F]{6})$");
         try(InputStream is = Chunk.class.getResourceAsStream("biomes.txt");
                 InputStreamReader isr = new InputStreamReader(is, "UTF8");
                 BufferedReader br = new BufferedReader(isr)) {
@@ -143,9 +143,11 @@ public class Biome implements Comparable<Biome> {
                     final int waterColor = Integer.parseInt(m.group(6), 16);
                     Biome biome = new Biome(name, namespaceID, numericID,
                             temperature, rainfall, waterColor | 0xFF000000);
-                    VANILLA_BIOMES.put(biome.numericID, biome);
+                    if (biome.numericID >= 0)
+                        VANILLA_BIOMES.put(biome.numericID, biome);
                     VANILLA_BIOME_NAMES.put(namespaceID, biome);
-                }
+                } else
+                    System.err.println("Unable to parse line: " + line);
             });
         } catch(Exception ex) {
         }

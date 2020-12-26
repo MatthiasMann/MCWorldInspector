@@ -73,3 +73,33 @@ End Midlands	minecraft:end_midlands	41	0.5	0.5	3F76E4
 End Highlands	minecraft:end_highlands	42	0.5	0.5	3F76E4
 End Barrens	minecraft:end_barrens	43	0.5	0.5	3F76E4
 The Void	minecraft:the_void	127	0.5	0.5	3F76E4
+BOP Alps Foothills	biomesoplenty:alps_foothills	-1	-0.25	0.3	3F76E4
+BOP Bayou	biomesoplenty:bayou	-1	0.95	0.9	62AF84
+BOP Bayou Mangrove	biomesoplenty:bayou_mangrove	-1	0.95	0.9	62AF84
+BOP Bamboo Blossom Grove	biomesoplenty:bamboo_blossom_grove	-1	0.6	0.9	3F76E4
+BOP Cherry Blossom Grove	biomesoplenty:cherry_blossom_grove	-1	0.6	0.9	3F76E4
+BOP Dead Swamp	biomesoplenty:dead_swamp	-1	0.3	0.3	3F76E4
+BOP Dry Boneyard	biomesoplenty:dry_boneyard	-1	0.85	0.05	3F76E4
+BOP Flower Meadow	biomesoplenty:flower_meadow	-1	0.4	0.7	3F76E4
+BOP Fungal Jungle	biomesoplenty:fungal_jungle	-1	0.9	0.9	43D5EE
+BOP Golden Prairie	biomesoplenty:golden_prairie	-1	0.81	0.3	3F76E4
+BOP Gravel Beach	biomesoplenty:gravel_beach	-1	0.6	0.5	3F76E4
+BOP Grove	biomesoplenty:grove	-1	0.81	0.275	45ADF2
+BOP Grove Clearing	biomesoplenty:grove_clearing	-1	0.81	0.275	45ADF2
+BOP Lavender Field	biomesoplenty:lavender_field	-1	0.81	0.7	3F76E4
+BOP Lush Savanna	biomesoplenty:lush_savanna	-1	0.9	0.5	45ADF2
+BOP Ominous Mire	biomesoplenty:ominous_mire	-1	0.6	0.6	312346
+BOP Orchard	biomesoplenty:orchard	-1	0.8	0.4	3F76E4
+BOP Overgrown Fungal Jungle	biomesoplenty:overgrown_fungal_jungle	-1	0.9	0.9	43D5EE
+BOP Rainforest	biomesoplenty:rainforest	-1	1.2	2.0	3FDF99
+BOP Rainforest Cliffs	biomesoplenty:rainforest_cliffs	-1	1.2	2.0	3FDF99
+BOP Rainforest Floodplain	biomesoplenty:rainforest_floodplain	-1	1.2	2.0	3FDF99
+BOP Redwood Forest Edge	biomesoplenty:redwood_forest_edge	-1	0.8	0.6	3F76E4
+BOP Redwood Forest	biomesoplenty:redwood_forest	-1	0.8	0.6	3F76E4
+BOP Redwood Hills	biomesoplenty:redwood_hills	-1	0.8	0.6	3F76E4
+BOP Scrubland	biomesoplenty:scrubland	-1	1.1	0.15	3F76E4
+BOP Shrubland Hills	biomesoplenty:shrubland_hills	-1	0.6	0.05	3F76E4
+BOP Seasonal Forest	biomesoplenty:seasonal_forest	-1	0.4	0.8	3F76E4
+BOP Seasonal Orchard	biomesoplenty:seasonal_orchard	-1	0.4	0.8	3F76E4
+BOP Snowy Maple Forest	biomesoplenty:snowy_maple_forest	-1	-0.25	0.5	3F76E4
+BOP Tundra Basin	biomesoplenty:tundra_basin	-1	0.2	0.5	3F76E4
