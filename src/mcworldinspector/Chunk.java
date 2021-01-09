@@ -31,7 +31,7 @@ public class Chunk extends XZPosition {
 
     public Chunk(int globalX, int globalZ, NBTTagCompound nbt) {
         super(globalX, globalZ);
-        final int dataVersion = nbt.get("DataVersion", Integer.class);
+        final int dataVersion = nbt.get("DataVersion", Integer.class, 0);
         this.level = nbt.getCompound("Level");
         for(NBTTagCompound s : level.getList("Sections", NBTTagCompound.class)) {
             int y = ((Number)s.get("Y")).intValue();
@@ -46,7 +46,7 @@ public class Chunk extends XZPosition {
                 else {
                     NBTByteArray blocks = s.get("Blocks", NBTByteArray.class);
                     NBTByteArray add = s.get("Add", NBTByteArray.class);
-                    if(blocks != null && add != null)
+                    if(blocks != null)
                         subchunks[y] = new SubChunk12(blocks, add, (byte)(y << 4));
                 }
             }

@@ -41,6 +41,7 @@ public class World {
     private Map<Integer, Biome> biomeRegistry = Collections.emptyMap();
     private final HashMap<XZPosition, Chunk> chunks = new HashMap<>();
     private final TreeMap<Integer, MCMap> maps = new TreeMap<>();
+    private File folder;
     private int regionFilesCount;
     private long regionFilesTotalSize;
     private long regionFilesUsed;
@@ -64,8 +65,8 @@ public class World {
 
         final var dataVersion = level.getCompound("Data")
                 .get("DataVersion", Integer.class, 0);
-        if(dataVersion == 1343) {
-            final var gm = new SubChunk12.GlobalMapping(level);
+        if(dataVersion <= 1343) {
+            final var gm = new SubChunk12.GlobalMapping(level, folder);
             globalMapping12 = gm;
             chunks.values().parallelStream()
                     .flatMap(Chunk::subChunks)
@@ -227,6 +228,7 @@ public class World {
             assert(total == 0);
             total = fileList.length;
             files = Arrays.asList(fileList).iterator();
+            world.folder = FileHelpers.findFileThroughParents(folder, "options.txt", 3).getParentFile();
 
             File levelDatFile = FileHelpers.findFileThroughParents(folder, "level.dat", 2);
             if(levelDatFile != null) {

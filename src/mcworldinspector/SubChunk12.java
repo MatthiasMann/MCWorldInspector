@@ -1,8 +1,17 @@
 package mcworldinspector;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -149,27 +158,53 @@ public class SubChunk12 implements SubChunk {
         BlockColorMap lastBCM;
         BlockColorMap.MappedBlockPalette mbp;
 
-        public GlobalMapping(NBTTagCompound level) {
+        private static final Pattern BLOCKS_CSV = Pattern.compile("^([^,]+),([0-9]+),([^,]+),([^,]+),([^,]+)$");
+
+        public GlobalMapping(NBTTagCompound level, File folder) {
             final var blockIds = level.getCompound("FML")
                     .getCompound("Registries")
                     .getCompound("minecraft:blocks")
                     .getList("ids", NBTTagCompound.class);
-            blockIds.forEach(e -> {
-                final var id = e.get("V", Integer.class);
-                final var blockType = e.getString("K");
-                if(id != null)
-                    palette[id] = blockType;
-            });
-            blockTypes = blockIds.stream()
-                    .map(e -> e.getString("K"))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            water = blockIds.stream()
-                    .filter(e -> "minecraft:water".equals(e.getString("K")))
-                    .map(e -> e.get("V", Integer.class))
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(-1);
+            if (blockIds.isEmpty()) {
+                int waterIdx = -1;
+                try ( FileInputStream fis = new FileInputStream(new File(folder, "dumps/block.csv"));
+                         InputStreamReader isr = new InputStreamReader(fis, "UTF8");
+                         BufferedReader br = new BufferedReader(isr)) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        Matcher m = BLOCKS_CSV.matcher(line);
+                        if (m.matches()) {
+                            int id = Integer.parseInt(m.group(2));
+                            String key = m.group(1);
+                            palette[id] = key;
+                            if (waterIdx < 0 && key.equals("minecraft:water"))
+                                waterIdx = id;
+                        }
+                    }
+                } catch (IOException ex) {
+                    Logger.getLogger(SubChunk12.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                blockTypes = Stream.of(palette).filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                water = waterIdx;
+            } else {
+                blockIds.forEach(e -> {
+                    final var id = e.get("V", Integer.class);
+                    final var blockType = e.getString("K");
+                    if(id != null)
+                        palette[id] = blockType;
+                });
+                blockTypes = blockIds.stream()
+                        .map(e -> e.getString("K"))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                water = blockIds.stream()
+                        .filter(e -> "minecraft:water".equals(e.getString("K")))
+                        .map(e -> e.get("V", Integer.class))
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(-1);
+            }
         }
 
         BlockColorMap.MappedBlockPalette mapBlockColors(BlockColorMap bcm) {
