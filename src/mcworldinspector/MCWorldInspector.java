@@ -106,6 +106,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
         infoPanels.add(new DroppedItemPanel(workerPool));
         infoPanels.add(new VillagerPanel(workerPool));
         infoPanels.add(new TileEntityTypesPanel(workerPool));
+        infoPanels.add(new LootChestPanel(workerPool));
         infoPanels.add(new BiomeTypesPanel(workerPool));
         infoPanels.add(new StructureTypesPanel(workerPool));
         infoPanels.add(new SimpleThingsPanel(workerPool));

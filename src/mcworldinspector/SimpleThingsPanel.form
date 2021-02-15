@@ -23,7 +23,6 @@
                   <Component id="btnPlayerPos" max="32767" attributes="0"/>
                   <Component id="btnSpawnChunk" alignment="0" max="32767" attributes="0"/>
                   <Component id="btnSearchChests" alignment="0" max="32767" attributes="0"/>
-                  <Component id="btnLootChests" alignment="0" max="32767" attributes="0"/>
                   <Component id="btnTulpis" alignment="0" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -42,10 +41,8 @@
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnSearchChests" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
-              <Component id="btnLootChests" min="-2" max="-2" attributes="0"/>
-              <EmptySpace max="-2" attributes="0"/>
               <Component id="btnTulpis" min="-2" max="-2" attributes="0"/>
-              <EmptySpace pref="102" max="32767" attributes="0"/>
+              <EmptySpace pref="133" max="32767" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -85,15 +82,6 @@
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnSearchChestsActionPerformed"/>
-      </Events>
-    </Component>
-    <Component class="javax.swing.JButton" name="btnLootChests">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Highlight loot chests"/>
-        <Property name="enabled" type="boolean" value="false"/>
-      </Properties>
-      <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnLootChestsActionPerformed"/>
       </Events>
     </Component>
     <Component class="javax.swing.JButton" name="btnTulpis">

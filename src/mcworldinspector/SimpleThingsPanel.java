@@ -47,7 +47,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         this.renderer = renderer;
         this.searchChestDlg = null;
         boolean enabled = world != null;
-        btnLootChests.setEnabled(enabled);
         btnPlayerPos.setEnabled(enabled);
         btnSearchChests.setEnabled(enabled);
         btnSlimeChunks.setEnabled(enabled);
@@ -68,7 +67,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         btnPlayerPos = new javax.swing.JButton();
         btnSpawnChunk = new javax.swing.JButton();
         btnSearchChests = new javax.swing.JButton();
-        btnLootChests = new javax.swing.JButton();
         btnTulpis = new javax.swing.JButton();
 
         btnSlimeChunks.setText("Highlight slime chunks");
@@ -103,14 +101,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
             }
         });
 
-        btnLootChests.setText("Highlight loot chests");
-        btnLootChests.setEnabled(false);
-        btnLootChests.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnLootChestsActionPerformed(evt);
-            }
-        });
-
         btnTulpis.setText("Tulpis in Plains");
         btnTulpis.setEnabled(false);
         btnTulpis.addActionListener(new java.awt.event.ActionListener() {
@@ -130,7 +120,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
                     .addComponent(btnPlayerPos, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnSpawnChunk, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnSearchChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(btnLootChests, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(btnTulpis, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -146,10 +135,8 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnSearchChests)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(btnLootChests)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnTulpis)
-                .addContainerGap(102, Short.MAX_VALUE))
+                .addContainerGap(133, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -191,11 +178,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
         highlightTileEntity(tile -> MCItem.getChestContent(tile).anyMatch(itemPred),
                 "Chests containing " + item, e -> MCItem.createChestView(world, e, item));
     }//GEN-LAST:event_btnSearchChestsActionPerformed
-
-    private void btnLootChestsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLootChestsActionPerformed
-        highlightTileEntity(t -> t.getString("LootTable") != null,
-                "Loot chests details for ");
-    }//GEN-LAST:event_btnLootChestsActionPerformed
 
     private void btnTulpisActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTulpisActionPerformed
         final Map<Integer, Biome> biomeRegistry = world.getBiomeRegistry();
@@ -247,7 +229,6 @@ public class SimpleThingsPanel extends JPanel implements MCWorldInspector.InfoPa
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnLootChests;
     private javax.swing.JButton btnPlayerPos;
     private javax.swing.JButton btnSearchChests;
     private javax.swing.JButton btnSlimeChunks;
