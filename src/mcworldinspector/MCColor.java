@@ -42,24 +42,24 @@ public enum MCColor {
         return color;
     }
     
-    public static MCColor fromByte(byte b) {
+    public static MCColor fromInt(int v) {
         MCColor[] values = values();
-        return (b >= 0 && b < values.length) ? values[b] : null;
+        return (v >= 0 && v < values.length) ? values[v] : null;
     }
     
-    public static MCColor fromByte(Byte b) {
-        if(b == null)
+    public static MCColor fromNumber(Number n) {
+        if(n == null)
             return null;
-        return fromByte(b.byteValue());
+        return fromInt(n.intValue());
     }
 
     public static Stream<MCColor> asStream(byte b) {
-        MCColor color = fromByte(b);
+        MCColor color = fromInt(b);
         return (color != null) ? Stream.of(color) : Stream.empty();
     }
     
     public static Stream<MCColor> asStream(Byte b) {
-        MCColor color = fromByte(b);
+        MCColor color = fromNumber(b);
         return (color != null) ? Stream.of(color) : Stream.empty();
     }
 }

@@ -310,8 +310,8 @@ public class NBTTreeModel extends AbstractTreeTableModel {
 
     private static void makeChildNodes(String name, Node node, Object value) {
         MCColor color;
-        if("Color".equalsIgnoreCase(name) && value instanceof Byte &&
-                (color = MCColor.fromByte((Byte)value)) != null) {
+        if("Color".equalsIgnoreCase(name) && value instanceof Number &&
+                (color = MCColor.fromNumber((Number)value)) != null) {
             node.value = new TextWithIcon(color.toString(), getColorIcon(color));
             return;
         }

@@ -48,7 +48,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
     @Override
     protected List<MCColor> filteredList(String filter) {
         try {
-            MCColor color = MCColor.fromByte(Byte.parseByte(filter));
+            MCColor color = MCColor.fromNumber(Byte.parseByte(filter));
             if(color != null)
                 return Collections.singletonList(color);
         } catch(NumberFormatException ex) {}
@@ -59,7 +59,7 @@ public class SheepColorPanel extends AbstractFilteredPanel<MCColor> {
 
     private static boolean isSheepColor(NBTTagCompound e, List<MCColor> selected) {
         return MINECRAFT_SHEEP.equals(e.getString("id")) &&
-                selected.contains(MCColor.fromByte(e.get("Color", Byte.class)));
+                selected.contains(MCColor.fromNumber(e.get("Color", Number.class)));
     }
 
     @Override
