@@ -12,6 +12,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +29,8 @@ import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.Timer;
+import mcworldinspector.nbt.NBTDoubleArray;
+import mcworldinspector.nbt.NBTFloatArray;
 import mcworldinspector.utils.SimpleListModel;
 
 /**
@@ -43,6 +47,7 @@ public class WorldRenderer extends JComponent {
     private final HashMap<XZPosition, BufferedImage> images = new HashMap<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicInteger asyncRenderingGeneration = new AtomicInteger();
+    private final Path2D playerMarker;
 
     private List<HighlightEntry> highlights = Collections.emptyList();
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
@@ -50,6 +55,7 @@ public class WorldRenderer extends JComponent {
     private HighlightEntry flash;
     private FlashMode flashMode = FlashMode.RESET;
     private int zoom = 1;
+    private boolean renderPlayerMarker;
 
     private enum FlashMode {
         RESET,
@@ -74,6 +80,10 @@ public class WorldRenderer extends JComponent {
                 executor.shutdownNow();
             }
         });
+        playerMarker = new Path2D.Float(PathIterator.WIND_NON_ZERO, 3);
+        playerMarker.moveTo(0, 10);
+        playerMarker.curveTo(20, -10, -20, -10, 0, 10);
+        playerMarker.closePath();
     }
 
     public int getZoom() {
@@ -96,6 +106,13 @@ public class WorldRenderer extends JComponent {
             this.zoom = zoom;
             revalidate();
             setViewportPos(center, inViewport);
+        }
+    }
+
+    public void setRenderPlayerMarker(boolean renderPlayerMarker) {
+        if(this.renderPlayerMarker != renderPlayerMarker) {
+            this.renderPlayerMarker = renderPlayerMarker;
+            repaint();
         }
     }
 
@@ -310,7 +327,8 @@ public class WorldRenderer extends JComponent {
             g.drawImage(e.getValue(), p.x * zoom16, p.z * zoom16, zoom16 * 32, zoom16 * 32, this);
         });
 
-        ((Graphics2D)g).setComposite(AlphaComposite.SrcOver.derive(0.4f));
+        final Graphics2D g2d = (Graphics2D)g;
+        g2d.setComposite(AlphaComposite.SrcOver.derive(0.4f));
         g.setColor(HIGHLIGHT_COLORS[highlight_index]);
         highlights.forEach(h -> h.paint(g, zoom));
         if(flash != null) {
@@ -322,6 +340,19 @@ public class WorldRenderer extends JComponent {
                 case OFF: flashMode = FlashMode.ON; break;
                 case ON: flashMode = FlashMode.OFF; break;
                 case RESET: flash = null; break;
+            }
+        }
+
+        if(renderPlayerMarker) {
+            final NBTDoubleArray playerPos = world.getPlayerPos();
+            final NBTFloatArray playerRot = world.getPlayerOrientation();
+            if(playerPos != null && playerRot != null) {
+                g2d.translate(playerPos.get(0) * zoom, playerPos.get(2) * zoom);
+                g2d.rotate(playerRot.get(0) * (Math.PI / 180.0));
+                g2d.setColor(Color.BLUE);
+                g2d.fill(playerMarker);
+                g2d.setColor(Color.BLACK);
+                g2d.draw(playerMarker);
             }
         }
     }

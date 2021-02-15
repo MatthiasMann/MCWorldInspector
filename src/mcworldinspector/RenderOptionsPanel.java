@@ -28,6 +28,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
             else
                 btnUnderground.setSelected(true);
         });
+        cbPlayerMarker.addChangeListener(l);
 
         updateLabel();
     }
@@ -40,6 +41,10 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
     public int getLayer() {
         return sliderLayer.getValue();
+    }
+
+    public boolean getPlayerMarker() {
+        return cbPlayerMarker.isSelected();
     }
 
     private void updateLabel() {
@@ -60,6 +65,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
         btnSurfaceNoLeaves = new javax.swing.JRadioButton();
         btnUnderground = new javax.swing.JRadioButton();
         sliderLayer = new javax.swing.JSlider();
+        cbPlayerMarker = new javax.swing.JCheckBox();
 
         renderModeGroup.add(btnSurface);
         btnSurface.setSelected(true);
@@ -75,6 +81,9 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
         sliderLayer.setMinimum(1);
         sliderLayer.setValue(64);
 
+        cbPlayerMarker.setSelected(true);
+        cbPlayerMarker.setText("Player Marker");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -86,13 +95,17 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
                         .addGap(22, 22, 22)
                         .addComponent(sliderLayer, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(btnSurface)
-                            .addComponent(btnUnderground))
-                        .addContainerGap(289, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
                         .addComponent(btnSurfaceNoLeaves)
-                        .addGap(0, 0, Short.MAX_VALUE))))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(btnSurface)
+                                    .addComponent(btnUnderground))
+                                .addGap(0, 281, Short.MAX_VALUE))
+                            .addComponent(cbPlayerMarker, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addContainerGap())))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -105,6 +118,8 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
                 .addComponent(btnUnderground)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(sliderLayer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(cbPlayerMarker)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
@@ -114,6 +129,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
     private javax.swing.JRadioButton btnSurface;
     private javax.swing.JRadioButton btnSurfaceNoLeaves;
     private javax.swing.JRadioButton btnUnderground;
+    private javax.swing.JCheckBox cbPlayerMarker;
     private javax.swing.ButtonGroup renderModeGroup;
     private javax.swing.JSlider sliderLayer;
     // End of variables declaration//GEN-END:variables

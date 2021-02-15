@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTDoubleArray;
+import mcworldinspector.nbt.NBTFloatArray;
 import mcworldinspector.nbt.NBTIntArray;
 import mcworldinspector.nbt.NBTTagCompound;
 import mcworldinspector.utils.AsyncExecution;
@@ -164,6 +165,10 @@ public class World {
 
     public NBTDoubleArray getPlayerPos() {
         return getPlayerData().get("Pos", NBTDoubleArray.class);
+    }
+
+    public NBTFloatArray getPlayerOrientation() {
+        return getPlayerData().get("Rotation", NBTFloatArray.class);
     }
 
     public Chunk getPlayerChunk() {

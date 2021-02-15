@@ -28,15 +28,21 @@
                       <Component id="sliderLayer" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" attributes="0">
-                      <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="btnSurface" alignment="0" min="-2" max="-2" attributes="0"/>
-                          <Component id="btnUnderground" alignment="0" min="-2" max="-2" attributes="0"/>
-                      </Group>
-                      <EmptySpace pref="289" max="32767" attributes="0"/>
-                  </Group>
-                  <Group type="102" alignment="0" attributes="0">
                       <Component id="btnSurfaceNoLeaves" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
+                  </Group>
+                  <Group type="102" attributes="0">
+                      <Group type="103" groupAlignment="0" attributes="0">
+                          <Group type="102" attributes="0">
+                              <Group type="103" groupAlignment="0" attributes="0">
+                                  <Component id="btnSurface" alignment="0" min="-2" max="-2" attributes="0"/>
+                                  <Component id="btnUnderground" alignment="0" min="-2" max="-2" attributes="0"/>
+                              </Group>
+                              <EmptySpace min="0" pref="281" max="32767" attributes="0"/>
+                          </Group>
+                          <Component id="cbPlayerMarker" max="32767" attributes="0"/>
+                      </Group>
+                      <EmptySpace max="-2" attributes="0"/>
                   </Group>
               </Group>
           </Group>
@@ -53,6 +59,8 @@
               <Component id="btnUnderground" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="sliderLayer" min="-2" max="-2" attributes="0"/>
+              <EmptySpace type="unrelated" max="-2" attributes="0"/>
+              <Component id="cbPlayerMarker" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="32767" attributes="0"/>
           </Group>
       </Group>
@@ -89,6 +97,12 @@
         <Property name="maximum" type="int" value="255"/>
         <Property name="minimum" type="int" value="1"/>
         <Property name="value" type="int" value="64"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JCheckBox" name="cbPlayerMarker">
+      <Properties>
+        <Property name="selected" type="boolean" value="true"/>
+        <Property name="text" type="java.lang.String" value="Player Marker"/>
       </Properties>
     </Component>
   </SubComponents>

@@ -387,6 +387,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private void renderChunks() {
         if(renderer == null)
             return;
+        renderer.setRenderPlayerMarker(renderOptionsPanel.getPlayerMarker());
         switch (renderOptionsPanel.getMode()) {
             case SURFACE:
                 renderer.startChunkRendering((w,c) ->
