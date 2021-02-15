@@ -30,6 +30,16 @@ public final class FileHelpers {
         return null;
     }
 
+    public static File findFolderOfThroughParents(File folder, String name, int maxLevels) {
+        while(folder != null && maxLevels-- >= 0) {
+            File file = new File(folder, name);
+            if(file.exists())
+                return folder;
+            folder = folder.getParentFile();
+        }
+        return null;
+    }
+
     public static ByteBuffer loadFile(File file, int maxSize) throws IOException {
         try(RandomAccessFile raf = new RandomAccessFile(file, "r")) {
             final long length = raf.length();

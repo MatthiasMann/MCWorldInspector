@@ -228,7 +228,7 @@ public class World {
             assert(total == 0);
             total = fileList.length;
             files = Arrays.asList(fileList).iterator();
-            world.folder = FileHelpers.findFileThroughParents(folder, "options.txt", 3).getParentFile();
+            world.folder = FileHelpers.findFolderOfThroughParents(folder, "options.txt", 4);
 
             File levelDatFile = FileHelpers.findFileThroughParents(folder, "level.dat", 2);
             if(levelDatFile != null) {
