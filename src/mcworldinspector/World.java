@@ -155,7 +155,10 @@ public class World {
     }
 
     public long getRandomSeed() {
-        final Long seed = level.getCompound("Data").get("RandomSeed", Long.class);
+        final NBTTagCompound data = level.getCompound("Data");
+        Long seed = data.getCompound("WorldGenSettings").get("seed", Long.class);
+        if (seed == null)
+            seed = data.get("RandomSeed", Long.class);
         return seed != null ? seed : 0;
     }
 
