@@ -18,40 +18,26 @@ public class SubChunk16 implements SubChunk {
     private final NBTTagList<NBTTagCompound> palette;
     private final NBTLongArray blockStates;
     private final byte[] blockTypes;
-    private final byte globalY;
+    private final short globalY;
     private final byte bits_per_blockstate;
     private final byte blocks_per_long;
     private BlockColorMap.MappedBlockPalette mappedPalette = BlockColorMap.MappedBlockPalette.EMPTY;
 
-    public SubChunk16(NBTTagList<NBTTagCompound> palette, NBTLongArray blockStates, byte globalY) {
+    public SubChunk16(NBTTagList<NBTTagCompound> palette, NBTLongArray blockStates, short globalY) {
         this.palette = palette;
         this.blockStates = blockStates;
-        this.blockTypes = new byte[palette.size()];
+        this.blockTypes = SubChunk.createBlockTypes(palette);
         this.bits_per_blockstate = (byte)Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size()-1));
         this.blocks_per_long = (byte)(64 / (bits_per_blockstate & 255));
         this.globalY = globalY;
 
         if (blockStates.size() != (4095 + blocks_per_long) / blocks_per_long)
             throw new IllegalArgumentException("blocks_per_long doesn't match with blockState length");
-
-        for(int idx=0 ; idx<palette.size() ; ++idx) {
-            String name = palette.get(idx).getString("Name");
-            switch (name) {
-                case "minecraft:cave_air":
-                case "minecraft:air":
-                    blockTypes[idx] = AIR;
-                    break;
-                case "minecraft:water":
-                case "minecraft:bubble_column":
-                    blockTypes[idx] = WATER;
-                    break;
-            }
-        }
     }
 
     @Override
     public int getGlobalY() {
-        return globalY & 255;
+        return globalY;
     }
 
     @Override

@@ -91,6 +91,9 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
             blockTypes = result;
             buildListModel();
         });
+        subChunkSlider.setMin(world.is18() ? -4 : 0);
+        subChunkSlider.setLower(subChunkSlider.getMin());
+        subChunkSlider.setUpper(subChunkSlider.getMax());
     }
 
     @Override
@@ -120,7 +123,7 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
         final int z = entry.chunk.z << 4;
         entry.chunk.subChunks(lower, upper).flatMap(sc ->
                 sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
-                .forEach(b -> blocks.computeIfAbsent(b.y, ArrayList::new).add(b));
+                .forEach(b -> blocks.computeIfAbsent(b.y, k -> new ArrayList<>()).add(b));
         final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);
         final JTree tree = new JTree(model);
         tree.setRootVisible(false);

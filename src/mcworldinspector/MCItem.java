@@ -145,28 +145,37 @@ public class MCItem {
 
             @Override
             public String getColumnName(int column) {
-                switch (column) {
-                    case 0: return "Slot";
-                    case 1: return "Item";
-                    case 2: return "Count";
-                    case 3: return "NBT";
-                    default:
-                        throw new AssertionError();
-                }
+                return switch (column) {
+                    case 0 -> "Slot";
+                    case 1 -> "Item";
+                    case 2 -> "Count";
+                    case 3 -> "NBT";
+                    default -> throw new AssertionError();
+                };
             }
 
             @Override
             public Object getValueAt(int rowIndex, int columnIndex) {
                 final var item = items.get(rowIndex);
-                switch (columnIndex) {
-                    case 0: return item.slot;
-                    case 1: return item.id;
-                    case 2: return item.count;
-                    case 3: return item.tag.isEmpty() ? "" :
-                            item.tag.size() + " values";
-                    default:
-                        throw new AssertionError();
+                return switch (columnIndex) {
+                    case 0 -> item.slot;
+                    case 1 -> item.id;
+                    case 2 -> item.count;
+                    case 3 -> formatTAG(item.tag);
+                    default -> throw new AssertionError();
+                };
+            }
+            
+            private static String formatTAG(NBTTagCompound tag) {
+                if (tag.isEmpty())
+                    return "";
+                if (tag.size() == 1) {
+                    final var e = tag.entries().findFirst().get();
+                    final var v = e.getValue();
+                    if (v instanceof Number || v instanceof String)
+                        return "{" + e.getKey() + " = " + v + "}";
                 }
+                return tag.size() + " values";
             }
         };
         final var table = new JTable(model);

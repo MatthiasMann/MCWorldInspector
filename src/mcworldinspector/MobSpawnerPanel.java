@@ -33,7 +33,9 @@ public class MobSpawnerPanel extends AbstractFilteredPanel<String> {
     private static final String ID = "minecraft:mob_spawner";
 
     private static String getSpawnDataID(NBTTagCompound s) {
-        return s.getCompound("SpawnData").getString("id");
+        final var sd = s.getCompound("SpawnData");
+        final var entity = sd.getCompound("entity");
+        return (entity != null ? entity : sd).getString("id");
     }
 
     @Override

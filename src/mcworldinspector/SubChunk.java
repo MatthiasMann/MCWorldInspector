@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import mcworldinspector.nbt.NBTTagCompound;
+import mcworldinspector.nbt.NBTTagList;
 
 /**
  *
@@ -80,5 +81,23 @@ public interface SubChunk {
             }
             return sb;
         }
+    }
+    
+    public static byte[] createBlockTypes(NBTTagList<NBTTagCompound> palette) {
+        byte[] blockTypes = new byte[palette.size()];
+        for(int idx=0 ; idx<palette.size() ; ++idx) {
+            String name = palette.get(idx).getString("Name");
+            switch (name) {
+                case "minecraft:cave_air":
+                case "minecraft:air":
+                    blockTypes[idx] = AIR;
+                    break;
+                case "minecraft:water":
+                case "minecraft:bubble_column":
+                    blockTypes[idx] = WATER;
+                    break;
+            }
+        }
+        return blockTypes;
     }
 }

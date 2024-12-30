@@ -257,6 +257,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
     private void finishedLoadingWorld(World world) {
         World oldWorld = this.world;
         this.world = world;
+        renderOptionsPanel.updateWorld(world);
         renderer = new WorldRenderer(world);
         renderer.setBlockColorMap(blockColorMap);
         mainarea.setViewportView(renderer);
@@ -749,7 +750,7 @@ public class MCWorldInspector extends javax.swing.JFrame {
             Boolean cached = specialCache.get(folder);
             if(cached == null) {
                 cached = Boolean.FALSE;
-                if(folder.isDirectory() && !folder.getName().equals("poi")) {
+                if(folder.isDirectory() && !diallowedName(folder.getName())) {
                     try {
                         String[] files = folder.list(
                                 (dir, name) -> name.endsWith(".mca"));
@@ -760,6 +761,10 @@ public class MCWorldInspector extends javax.swing.JFrame {
                 specialCache.put(folder, cached);
             }
             return cached;
+        }
+        
+        private static boolean diallowedName(String name) {
+            return name.equals("poi") || name.equals("entities");
         }
     }
 

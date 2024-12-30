@@ -8,6 +8,8 @@ import javax.swing.event.ChangeListener;
  */
 public class RenderOptionsPanel extends javax.swing.JPanel {
 
+    private boolean supressSliderCB;
+
     public static enum Mode {
         SURFACE,
         SURFACE_NO_LEAVES,
@@ -25,7 +27,7 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
             updateLabel();
             if(btnUnderground.isSelected())
                 cb.run();
-            else
+            else if(!supressSliderCB)
                 btnUnderground.setSelected(true);
         });
         cbPlayerMarker.addChangeListener(l);
@@ -49,6 +51,14 @@ public class RenderOptionsPanel extends javax.swing.JPanel {
 
     private void updateLabel() {
         btnUnderground.setText("Underground Y=" + getLayer());
+    }
+    
+    public void updateWorld(World world) {
+        if (world != null) {
+            supressSliderCB = true;
+            sliderLayer.setMinimum(world.is18() ? -64 : 0);
+            supressSliderCB = false;
+        }
     }
 
     /**

@@ -365,8 +365,8 @@ public class WorldRenderer extends JComponent {
         final int[] data = new int[256];
         for(int idx=0 ; idx<256 ; idx++) {
             final int top = heightmap.getHeight(idx) - 1;
-            SubChunk sc;
-            if(top >= 0 && top < 256 && (sc = chunk.getSubChunk(top >> 4)) != null) {
+            final SubChunk sc = chunk.getSubChunkCheck(top >> 4);
+            if(sc != null) {
                 final int index = sc.getBlockIndex(idx, top);
                 if(index >= 0) {
                     int color = getBlockColor(sc, index, biomes, idx, biomeRegistry, top);

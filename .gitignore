@@ -2,3 +2,5 @@ build/**
 dist/**
 nbproject/private/**
 
+/src/mcworldinspector/utils/EnumeratorAdapter.java
+/unused/

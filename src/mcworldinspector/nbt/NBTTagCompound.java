@@ -30,6 +30,16 @@ public abstract class NBTTagCompound extends NBTBase {
     public abstract Stream<Map.Entry<String, Object>> entries();
     public abstract Stream<Object> values();
 
+    public Object get(String[] names) {
+        for (String name : names) {
+            final var o = get(name);
+            if (o != null) {
+                return o;
+            }
+        }
+        return null;
+    }
+
     public boolean isEmpty() {
         return size() == 0;
     }
@@ -73,9 +83,20 @@ public abstract class NBTTagCompound extends NBTBase {
         return (o instanceof NBTTagCompound) ? (NBTTagCompound)o : EMPTY;
     }
 
+    public NBTTagCompound getCompound(String[] names) {
+        Object o = get(names);
+        return (o instanceof NBTTagCompound) ? (NBTTagCompound)o : EMPTY;
+    }
+
     @SuppressWarnings("unchecked")
     public<U> NBTTagList<U> getList(String name, Class<U> type) {
         Object o = get(name);
+        return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : NBTTagList.EMPTY;
+    }
+
+    @SuppressWarnings("unchecked")
+    public<U> NBTTagList<U> getList(String[] names, Class<U> type) {
+        Object o = get(names);
         return (o instanceof NBTTagList) ? ((NBTTagList)o).as(type) : NBTTagList.EMPTY;
     }
 
@@ -91,9 +112,11 @@ public abstract class NBTTagCompound extends NBTBase {
         return parseTagCompound(data);
     }
 
-    public static NBTTagCompound parseInflate(ByteBuffer compressed, ByteBuffer uncompressed, boolean unwarp) throws DataFormatException, IOException {
+    public static NBTTagCompound parseInflate(ByteBuffer compressed, ByteBuffer uncompressed, boolean unwrap) throws DataFormatException, IOException {
+        if (unwrap)
+            FileHelpers.parseGZipHeader(compressed);
         int remaining = uncompressed.remaining();
-        Inflater i = new Inflater(unwarp);
+        Inflater i = new Inflater(unwrap);
         i.setInput(compressed);
         i.inflate(uncompressed);
         if(!i.finished())
@@ -103,7 +126,7 @@ public abstract class NBTTagCompound extends NBTBase {
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed, boolean unwarp) throws DataFormatException, IOException {
-        return parseInflate(compressed, ByteBuffer.allocateDirect(2 << 20), unwarp);
+        return parseInflate(compressed, ByteBuffer.allocateDirect(8 << 20), unwarp);
     }
 
     public static NBTTagCompound parseInflate(ByteBuffer compressed) throws DataFormatException, IOException {
@@ -111,7 +134,6 @@ public abstract class NBTTagCompound extends NBTBase {
     }
 
     public static NBTTagCompound parseGZip(ByteBuffer compressed) throws IOException, DataFormatException {
-        FileHelpers.parseGZipHeader(compressed);
         return parseInflate(compressed, true);
     }
 
