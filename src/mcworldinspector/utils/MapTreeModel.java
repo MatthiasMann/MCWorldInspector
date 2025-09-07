@@ -32,9 +32,9 @@ public class MapTreeModel<K, V> implements TreeModel {
 
     private final Node<Node<V>> root;
 
-    public MapTreeModel(Map<K, ? extends List<V>> map, Function<K, String> toString) {
+    public MapTreeModel(Map<K, ? extends List<V>> map, Function<Map.Entry<K, ? extends List<V>>, String> toString) {
         this.root = new Node<>("", map.entrySet().stream()
-                .map(e -> new Node<>(toString.apply(e.getKey()), e.getValue()))
+                .map(e -> new Node<>(toString.apply(e), e.getValue()))
                 .collect(Collectors.toList()));
     }
 

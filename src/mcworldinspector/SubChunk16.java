@@ -27,8 +27,8 @@ public class SubChunk16 implements SubChunk {
         this.palette = palette;
         this.blockStates = blockStates;
         this.blockTypes = SubChunk.createBlockTypes(palette);
-        this.bits_per_blockstate = (byte)Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size()-1));
-        this.blocks_per_long = (byte)(64 / (bits_per_blockstate & 255));
+        this.bits_per_blockstate = (byte) Math.max(4, 32 - Integer.numberOfLeadingZeros(palette.size() - 1));
+        this.blocks_per_long = (byte) (64 / (bits_per_blockstate & 255));
         this.globalY = globalY;
 
         if (blockStates.size() != (4095 + blocks_per_long) / blocks_per_long)
@@ -87,12 +87,47 @@ public class SubChunk16 implements SubChunk {
     }
 
     @Override
+    public long countBlocks(List<String> blockTypes) {
+        class Builder extends IntPredicateBuilder<Long> {
+            @Override
+            public Long build() {
+                return 0l;
+            }
+
+            @Override
+            public Long build(int index) {
+                return IntStream.range(0, 4096)
+                        .filter(pos -> index == getBlockIndex(pos))
+                        .count();
+            }
+
+            @Override
+            public Long build(int[] array, int count) {
+                return IntStream.range(0, 4096).filter(pos -> {
+                    final var value = getBlockIndex(pos);
+                    for (int idx = 0; idx < count; ++idx) {
+                        if (array[idx] == value)
+                            return true;
+                    }
+                    return false;
+                }).count();
+            }
+        }
+        final var b = new Builder();
+        final var pal = palette;
+        return IntPredicateBuilder.of(blockTypes.stream().flatMapToInt(
+                blockType -> IntStream.range(0, pal.size()).filter(
+                        idx -> blockType.equals(pal.get(idx).getString("Name")))), b);
+    }
+
+    @Override
     public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
         class Builder extends IntPredicateBuilder<Stream<BlockInfo>> {
             @Override
             public Stream<BlockInfo> build() {
                 return Stream.empty();
             }
+
             @Override
             public Stream<BlockInfo> build(int index) {
                 final var block = palette.get(index);
@@ -100,13 +135,14 @@ public class SubChunk16 implements SubChunk {
                         .filter(pos -> index == getBlockIndex(pos))
                         .mapToObj(pos -> new BlockInfo(pos, offset, block));
             }
+
             @Override
             public Stream<BlockInfo> build(int[] array, int count) {
                 final var pal = palette;
                 return IntStream.range(0, 4096).mapToObj(pos -> {
                     final var value = getBlockIndex(pos);
-                    for(int idx=0 ; idx<count ; ++idx)
-                        if(array[idx] == value)
+                    for (int idx = 0; idx < count; ++idx)
+                        if (array[idx] == value)
                             return new BlockInfo(pos, offset, pal.get(value));
                     return null;
                 }).filter(Objects::nonNull);

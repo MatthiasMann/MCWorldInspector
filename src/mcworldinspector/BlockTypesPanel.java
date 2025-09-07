@@ -2,6 +2,7 @@ package mcworldinspector;
 
 import java.awt.Component;
 import java.awt.Dialog;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +16,7 @@ import java.util.stream.Stream;
 import javax.swing.AbstractAction;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
@@ -24,13 +26,16 @@ import javax.swing.SwingUtilities;
 import mcworldinspector.utils.AsyncExecution;
 import mcworldinspector.utils.MapTreeModel;
 import mcworldinspector.utils.RangeSlider;
+import mcworldinspector.utils.StringHelpers;
 
 /**
  *
  * @author matthias
  */
 public class BlockTypesPanel extends AbstractFilteredPanel<String> {
+
     private final ExecutorService executorService;
+    private final JCheckBox btnShowCount = new JCheckBox();
     private final RangeSlider subChunkSlider = new RangeSlider(0, 16);
     private final JLabel lowerLabel = new JLabel();
     private final JLabel upperLabel = new JLabel();
@@ -40,24 +45,33 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
         this.executorService = executorService;
         setName("Blocks");
 
+        btnShowCount.setText("Show block count (slower)");
+        btnShowCount.addChangeListener(e -> doHighlighting());
+
         lowerLabel.setLabelFor(subChunkSlider);
         lowerLabel.setHorizontalAlignment(JLabel.RIGHT);
         upperLabel.setLabelFor(subChunkSlider);
 
         int labelWidth = lowerLabel.getFontMetrics(lowerLabel.getFont()).stringWidth("123");
 
-        horizontal.addGroup(layout.createSequentialGroup()
+        horizontal.addGroup(layout.createParallelGroup()
+                .addComponent(btnShowCount)
+                .addGroup(
+                        layout.createSequentialGroup()
+                                .addGap(4)
+                                .addComponent(lowerLabel, labelWidth, labelWidth, labelWidth)
+                                .addGap(4)
+                                .addComponent(subChunkSlider)
+                                .addGap(4)
+                                .addComponent(upperLabel, labelWidth, labelWidth, labelWidth)
+                                .addGap(4)));
+        vertical.addGroup(layout.createSequentialGroup()
+                .addComponent(btnShowCount)
                 .addGap(4)
-                .addComponent(lowerLabel, labelWidth, labelWidth, labelWidth)
-                .addGap(4)
-                .addComponent(subChunkSlider)
-                .addGap(4)
-                .addComponent(upperLabel, labelWidth, labelWidth, labelWidth)
-                .addGap(4));
-        vertical.addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-                .addComponent(lowerLabel)
-                .addComponent(subChunkSlider)
-                .addComponent(upperLabel));
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                        .addComponent(lowerLabel)
+                        .addComponent(subChunkSlider)
+                        .addComponent(upperLabel)));
         subChunkSlider.addPropertyChangeListener(e -> {
             updateLabels();
             doHighlighting();
@@ -66,8 +80,8 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     }
 
     private void updateLabels() {
-        lowerLabel.setText(Integer.toString(subChunkSlider.getLower() << 4));
-        upperLabel.setText(Integer.toString(subChunkSlider.getUpper() << 4));
+        lowerLabel.setText(Integer.toString(subChunkSlider.getLower() * 16));
+        upperLabel.setText(Integer.toString(subChunkSlider.getUpper() * 16));
     }
 
     @Override
@@ -105,30 +119,50 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
     protected Stream<? extends WorldRenderer.HighlightEntry> createHighlighter(List<String> selected) {
         final var lower = subChunkSlider.getLower();
         final var upper = subChunkSlider.getUpper();
+        if (btnShowCount.isSelected()) {
+            return world.getChunks().parallelStream()
+                    .map(chunk -> {
+                        final var count = chunk.subChunks(lower, upper)
+                                .mapToLong(sc -> sc.countBlocks(selected))
+                                .sum();
+                        if (count > 0)
+                            return new ChunkHighlightEntry.WithCount(chunk, count) {
+                                @Override
+                                public void showDetailsFor(Component parent) {
+                                    showDetails(parent, this, lower, upper, selected);
+                                }
+                            };
+                        return null;
+                    }).filter(che -> che != null).sorted();
+        }
+
         return world.getChunks().parallelStream()
                 .filter(chunk -> chunk.subChunks(lower, upper)
-                        .flatMap(SubChunk::getBlockTypes)
-                        .anyMatch(selected::contains))
+                .flatMap(SubChunk::getBlockTypes)
+                .anyMatch(selected::contains))
                 .map(chunk -> new ChunkHighlightEntry(chunk) {
-                    @Override
-                    public void showDetailsFor(Component parent) {
-                        showDetails(parent, this, lower, upper, selected);
-                    }
-                });
+            @Override
+            public void showDetailsFor(Component parent) {
+                showDetails(parent, this, lower, upper, selected);
+            }
+        });
     }
-    
+
     private static void showDetails(Component parent, ChunkHighlightEntry entry, int lower, int upper, List<String> blockTypes) {
         final TreeMap<Integer, ArrayList<SubChunk.BlockInfo>> blocks = new TreeMap<>();
         final int x = entry.chunk.x << 4;
         final int z = entry.chunk.z << 4;
-        entry.chunk.subChunks(lower, upper).flatMap(sc ->
-                sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
+        entry.chunk.subChunks(lower, upper).flatMap(sc
+                -> sc.findBlocks(blockTypes, new BlockPos(x, sc.getGlobalY(), z)))
                 .forEach(b -> blocks.computeIfAbsent(b.y, k -> new ArrayList<>()).add(b));
-        final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks, y -> "Y=" + y);
+        final var highestCount = StringHelpers.widthForCount(blocks.values().stream().mapToInt(v -> v.size()).max());
+        final MapTreeModel<Integer, SubChunk.BlockInfo> model = new MapTreeModel<>(blocks,
+                e -> String.format("Y=%3d  %s", e.getKey(), StringHelpers.formatCount(e.getValue().size(), "Block", highestCount)));
         final JTree tree = new JTree(model);
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
-        if(model.getChildCount(model.getRoot()) == 1)
+        tree.setFont(new Font( "Monospaced", Font.PLAIN, tree.getFont().getSize()));
+        if (model.getChildCount(model.getRoot()) == 1)
             tree.expandRow(0);
         final JScrollPane sp = new JScrollPane(tree);
         final JDialog dlg = new JDialog(SwingUtilities.getWindowAncestor(parent),
@@ -143,10 +177,10 @@ public class BlockTypesPanel extends AbstractFilteredPanel<String> {
         layout.setHorizontalGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup()
-                    .addComponent(sp, 600, 1000, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(btnOk)))
+                        .addComponent(sp, 600, 1000, Short.MAX_VALUE)
+                        .addGroup(layout.createSequentialGroup()
+                                .addGap(0, 0, Short.MAX_VALUE)
+                                .addComponent(btnOk)))
                 .addContainerGap());
         layout.setVerticalGroup(layout.createSequentialGroup()
                 .addContainerGap()

@@ -65,6 +65,11 @@ public class SubChunkSingle implements SubChunk {
     }
 
     @Override
+    public long countBlocks(List<String> blockTypes) {
+        return 0l;
+    }
+
+    @Override
     public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
         return Stream.empty();
     }

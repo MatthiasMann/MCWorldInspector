@@ -115,6 +115,44 @@ public class SubChunk12 implements SubChunk {
     }
 
     @Override
+    public long countBlocks(List<String> blockTypes) {
+        if (mapping == null)
+            return 0l;
+        final var pal = mapping.palette;
+        class Builder extends IntPredicateBuilder<Long> {
+            @Override
+            public Long build() {
+                return 0l;
+            }
+
+            @Override
+            public Long build(int index) {
+                final var gbi = SubChunk12.this.gbi;
+                return IntStream.range(0, 4096)
+                        .filter(pos -> index == gbi.get(pos))
+                        .count();
+            }
+
+            @Override
+            public Long build(int[] array, int count) {
+                final var gbi = SubChunk12.this.gbi;
+                return IntStream.range(0, 4096).filter(pos -> {
+                    final var value = gbi.get(pos);
+                    for (int idx = 0; idx < count; ++idx) {
+                        if (array[idx] == value)
+                            return true;
+                    }
+                    return false;
+                }).count();
+            }
+        }
+        final var b = new Builder();
+        return IntPredicateBuilder.of(blockTypes.stream().flatMapToInt(
+                blockType -> IntStream.range(0, pal.length).filter(
+                        idx -> blockType.equals(pal[idx]))), b);
+    }
+
+    @Override
     public Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset) {
         if(mapping == null)
             return Stream.empty();

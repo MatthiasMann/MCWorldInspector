@@ -38,6 +38,8 @@ public interface SubChunk {
 
     BlockColorMap.MappedBlockPalette mappedBlockColors();
 
+    long countBlocks(List<String> blockTypes);
+
     Stream<BlockInfo> findBlocks(List<String> blockTypes, BlockPos offset);
 
     public static class BlockInfo extends BlockPos {
