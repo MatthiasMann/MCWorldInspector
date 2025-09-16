@@ -52,16 +52,9 @@ public class WorldRenderer extends JComponent {
     private List<HighlightEntry> highlights = Collections.emptyList();
     private final SimpleListModel<HighlightEntry> highlights_model = new SimpleListModel<>(highlights);
     private final Timer highlight_timer;
-    private HighlightEntry flash;
-    private FlashMode flashMode = FlashMode.RESET;
+    private HighlightEntry focus;
     private int zoom = 1;
     private boolean renderPlayerMarker;
-
-    private enum FlashMode {
-        RESET,
-        ON,
-        OFF
-    }
 
     @SuppressWarnings("OverridableMethodCallInConstructor")
     public WorldRenderer(World world) {
@@ -278,17 +271,19 @@ public class WorldRenderer extends JComponent {
 
     public void scrollTo(HighlightEntry e) {
         scrollTo(e.getRectangle(), false);
-        flash = e;
-        flashMode = FlashMode.RESET;
-        highlight_timer.restart();
+        focus = e;
+        if (!highlight_timer.isRunning())
+            highlight_timer.start();
         repaint();
     }
     
     public void flash(HighlightEntry e) {
-        flash = e;
-        flashMode = FlashMode.ON;
-        if (e == null)
+        if (focus != e) {
+            focus = e;
             repaint();
+            if (!highlight_timer.isRunning())
+                highlight_timer.start();
+        }
     }
 
     public Point component2mc(Point p) {
@@ -306,7 +301,8 @@ public class WorldRenderer extends JComponent {
                 (max_z - min_z + 1) * zoom16);
     }
 
-    private static final Color HIGHLIGHT_COLORS[] = { Color.RED, Color.BLUE, Color.GREEN };
+    private static final Color HIGHLIGHT_COLORS[] = { Color.RED.darker(), Color.BLUE.darker(), Color.GREEN.darker() };
+    private static final Color FOCUS_COLORS[] = { Color.CYAN, Color.YELLOW, Color.MAGENTA };
     private int highlight_index = 0;
 
     @Override
@@ -330,17 +326,13 @@ public class WorldRenderer extends JComponent {
         final Graphics2D g2d = (Graphics2D)g;
         g2d.setComposite(AlphaComposite.SrcOver.derive(0.4f));
         g.setColor(HIGHLIGHT_COLORS[highlight_index]);
-        highlights.forEach(h -> h.paint(g, zoom));
-        if(flash != null) {
-            if(flashMode != FlashMode.OFF) {
-                g.setColor(Color.PINK);
-                flash.paint(g, zoom);
-            }
-            switch(flashMode) {
-                case OFF: flashMode = FlashMode.ON; break;
-                case ON: flashMode = FlashMode.OFF; break;
-                case RESET: flash = null; break;
-            }
+        for (HighlightEntry e : highlights) {
+            if (e != focus)
+                e.paint(g, zoom);
+        }
+        if(focus != null) {
+            g.setColor(FOCUS_COLORS[highlight_index]);
+            focus.paint(g, zoom);
         }
 
         if(renderPlayerMarker) {
